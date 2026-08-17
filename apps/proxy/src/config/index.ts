@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { randomBytes } from 'crypto';
 import { PrivacyMode } from '@ai-privacy-proxy/shared';
 
 const ConfigSchema = z.object({
@@ -39,11 +38,9 @@ try {
   });
 }
 
-// Security Hardening (SEC-002): Warn if default secret key is active in non-test mode
-if (currentConfig.ADMIN_API_KEY === 'admin-secret-key-change-me' && process.env['NODE_ENV'] === 'production') {
-  const generatedKey = `sk_admin_${randomBytes(24).toString('hex')}`;
-  console.warn(`\n⚠️  [SECURITY WARNING] Using default ADMIN_API_KEY in production! Auto-generating secure key: ${generatedKey}\n`);
-  currentConfig.ADMIN_API_KEY = generatedKey;
+// Security Warning: Log recommendation if default key is still active
+if (currentConfig.ADMIN_API_KEY === 'admin-secret-key-change-me') {
+  console.warn(`\n⚠️  [SECURITY NOTICE] Using default ADMIN_API_KEY ("admin-secret-key-change-me"). Remember to customize this in .env for production environments.\n`);
 }
 
 export const config = currentConfig;
