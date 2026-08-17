@@ -8,7 +8,7 @@ import { config } from './config/index.js';
 import { vault } from './vault/redis-vault.js';
 import { healthRoutes } from './routes/health.js';
 import { adminRoutes } from './routes/admin.js';
-import { proxyRoutes } from './routes/proxy.js';
+import { proxyRoutes, handleProxyRequest } from './routes/proxy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -87,24 +87,18 @@ async function startServer() {
     });
   }
 
-  // Register catch-all proxy routes
+  // Register explicit proxy routes (/v1/chat/completions, /v1/messages, etc.)
   await server.register(proxyRoutes);
 
-  // SPA fallback for dashboard routes if not matched
-  if (dashboardPath) {
-    server.setNotFoundHandler((req, reply) => {
-      if (req.url.startsWith('/dashboard')) {
-        return reply.sendFile('index.html');
-      }
-      reply.status(404).send({
-        error: {
-          type: 'not_found',
-          code: 'route_not_found',
-          message: `Cannot ${req.method} ${req.url}`,
-        },
-      });
-    });
-  }
+  // Catch-all NotFound handler: handles SPA fallback for /dashboard and dynamic proxy routes
+  server.setNotFoundHandler(async (req, reply) => {
+    if (dashboardPath && req.url.startsWith('/dashboard')) {
+      return reply.sendFile('index.html');
+    }
+
+    // Forward any other unmatched route to the proxy pipeline
+    return handleProxyRequest(req, reply);
+  });
 
   // Graceful shutdown
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
