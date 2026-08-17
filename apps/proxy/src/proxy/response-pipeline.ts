@@ -11,7 +11,7 @@ export async function processNonStreamingResponse(
   sessionId: string,
   adapter: ProtocolAdapter | null,
 ): Promise<string> {
-  if (!bodyStr || !bodyStr.includes('[')) {
+  if (!bodyStr) {
     return bodyStr;
   }
 

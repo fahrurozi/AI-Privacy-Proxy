@@ -262,6 +262,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ success, sessionId: id });
   });
 
+  fastify.get('/admin/sessions/:id/tokens', async (req, reply) => {
+    if (!verifyAdminAuth(req, reply)) return;
+    const { id } = req.params as { id: string };
+    const tokenMap = await vault.listSessionTokens(id);
+    const entries: { token: string; entityType: string; originalValue: string }[] = [];
+    for (const [token, originalValue] of tokenMap.entries()) {
+      const typeMatch = token.match(/\[(?:[a-zA-Z0-9_-]+:)?([A-Z_]+)_\d{3}\]/);
+      entries.push({
+        token,
+        entityType: typeMatch?.[1] || 'UNKNOWN',
+        originalValue,
+      });
+    }
+    return reply.send({ sessionId: id, tokens: entries });
+  });
+
   fastify.get('/admin/policy', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     return reply.send({ policies: policyRegistry.getAllPolicies() });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { UpstreamProvider, UpstreamSettings } from '@ai-privacy-proxy/shared';
 import { fetchApi } from '../lib/api.js';
 import { SlideOverDrawer } from '../components/SlideOverDrawer.js';
@@ -24,7 +24,93 @@ import {
   Pencil,
   Lock,
   Cpu,
+  Layers,
 } from 'lucide-react';
+
+// ── Color-coded entity type badge ────────────────────────────────────────────
+const ENTITY_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+  PERSON:           { bg: 'bg-blue-950/60',   text: 'text-blue-200',   border: 'border-blue-800',   dot: 'bg-blue-400' },
+  EMAIL_ADDRESS:    { bg: 'bg-emerald-950/60', text: 'text-emerald-200', border: 'border-emerald-800', dot: 'bg-emerald-400' },
+  PHONE_NUMBER:     { bg: 'bg-teal-950/60',   text: 'text-teal-200',   border: 'border-teal-800',   dot: 'bg-teal-400' },
+  IP_ADDRESS:       { bg: 'bg-cyan-950/60',   text: 'text-cyan-200',   border: 'border-cyan-800',   dot: 'bg-cyan-400' },
+  ETHEREUM_ADDRESS: { bg: 'bg-purple-950/60', text: 'text-purple-200', border: 'border-purple-800', dot: 'bg-purple-400' },
+  SOLANA_ADDRESS:   { bg: 'bg-violet-950/60', text: 'text-violet-200', border: 'border-violet-800', dot: 'bg-violet-400' },
+  CREDIT_CARD:      { bg: 'bg-yellow-950/60', text: 'text-yellow-200', border: 'border-yellow-800', dot: 'bg-yellow-400' },
+  US_SSN:           { bg: 'bg-orange-950/60', text: 'text-orange-200', border: 'border-orange-800', dot: 'bg-orange-400' },
+  API_KEY:          { bg: 'bg-red-950/60',    text: 'text-red-200',    border: 'border-red-800',    dot: 'bg-red-400' },
+  PRIVATE_KEY:      { bg: 'bg-red-950/80',    text: 'text-red-100',    border: 'border-red-700',    dot: 'bg-red-300' },
+  SEED_PHRASE:      { bg: 'bg-red-950/80',    text: 'text-red-100',    border: 'border-red-700',    dot: 'bg-red-300' },
+  ORGANIZATION:     { bg: 'bg-indigo-950/60', text: 'text-indigo-200', border: 'border-indigo-800', dot: 'bg-indigo-400' },
+};
+const DEFAULT_ENTITY_COLOR = { bg: 'bg-slate-800/60', text: 'text-slate-300', border: 'border-slate-700', dot: 'bg-slate-400' };
+
+function EntityTypeBadge({ type }: { type: string }) {
+  const c = ENTITY_COLORS[type] || DEFAULT_ENTITY_COLOR;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold border ${c.bg} ${c.text} ${c.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+      {type}
+    </span>
+  );
+}
+
+// ── Color-coded token highlighter in raw AI response ─────────────────────────
+function HighlightedTokenText({
+  text,
+  legend,
+}: {
+  text: string;
+  legend: { token: string; entityType: string; originalValue: string }[];
+}) {
+  if (!legend || legend.length === 0) return <>{text}</>;
+
+  // Build a map from token string to entityType
+  const tokenTypeMap = new Map<string, string>();
+  for (const entry of legend) {
+    tokenTypeMap.set(entry.token, entry.entityType);
+  }
+
+  // Split text into token and non-token segments, then highlight
+  const tokenPattern = /(\[[a-zA-Z0-9_-]+:[A-Z_]+_\d{3}\]|\b[A-Z][A-Z_]+_\d{3}\b)/g;
+  const parts = text.split(tokenPattern);
+
+  return (
+    <>
+      {parts.map((part, idx) => {
+        const entityType = tokenTypeMap.get(part);
+        if (!entityType) {
+          // Try bare suffix match
+          const bareSuffix = legend.find(
+            (e) => e.token.includes(`:${part}]`) || e.token.endsWith(`${part}]`)
+          );
+          if (bareSuffix) {
+            const c = ENTITY_COLORS[bareSuffix.entityType] || DEFAULT_ENTITY_COLOR;
+            return (
+              <span
+                key={idx}
+                className={`inline rounded px-1 py-0.5 font-mono text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}
+                title={`→ ${bareSuffix.originalValue}`}
+              >
+                {part}
+              </span>
+            );
+          }
+          return <span key={idx}>{part}</span>;
+        }
+        const c = ENTITY_COLORS[entityType] || DEFAULT_ENTITY_COLOR;
+        return (
+          <span
+            key={idx}
+            className={`inline rounded px-1 py-0.5 font-mono text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}
+            title={`→ ${legend.find((e) => e.token === part)?.originalValue ?? ''}`}
+          >
+            {part}
+          </span>
+        );
+      })}
+    </>
+  );
+}
 
 export function ProvidersPage() {
   const [providers, setProviders] = useState<UpstreamProvider[]>([]);
@@ -66,7 +152,9 @@ export function ProvidersPage() {
     latencyMs: number;
     tokensUsed?: number;
     status: number;
+    sessionId?: string;
   } | null>(null);
+  const [tokenLegend, setTokenLegend] = useState<{ token: string; entityType: string; originalValue: string }[]>([]);
   const [activePlaygroundTab, setActivePlaygroundTab] = useState<'client' | 'sent_external' | 'raw_external'>('client');
   const [playgroundError, setPlaygroundError] = useState<string | null>(null);
 
@@ -122,6 +210,7 @@ export function ProvidersPage() {
     setSelectedModel('');
     setCustomModelInput('');
     setPlaygroundResponse(null);
+    setTokenLegend([]);
     setPlaygroundError(null);
   };
 
@@ -379,6 +468,8 @@ export function ProvidersPage() {
         rawUpstreamResponse = assistantText;
       }
 
+      const sessionId = response.headers.get('x-privacy-session-id') || '';
+
       setPlaygroundResponse({
         text: assistantText,
         sanitizedPrompt: sanitizedPrompt || playgroundPrompt,
@@ -386,8 +477,19 @@ export function ProvidersPage() {
         latencyMs,
         tokensUsed,
         status: response.status,
+        sessionId,
       });
       setActivePlaygroundTab('client');
+
+      // Fetch token mapping legend if we have a session ID
+      if (sessionId) {
+        try {
+          const legendData = await fetchApi<{ tokens: { token: string; entityType: string; originalValue: string }[] }>(
+            `/admin/sessions/${encodeURIComponent(sessionId)}/tokens`
+          );
+          setTokenLegend(legendData.tokens || []);
+        } catch {}
+      }
     } catch (err: any) {
       setPlaygroundError(err.message || 'Failed to receive response from provider.');
     } finally {
@@ -957,7 +1059,7 @@ export function ProvidersPage() {
                       </span>
                     </div>
                     <div className="p-3.5 bg-amber-950/20 border border-amber-900/50 rounded-xl font-mono text-xs text-amber-100 whitespace-pre-wrap leading-relaxed">
-                      {playgroundResponse.rawUpstreamResponse || playgroundResponse.text}
+                      <HighlightedTokenText text={playgroundResponse.rawUpstreamResponse || playgroundResponse.text} legend={tokenLegend} />
                     </div>
                     <p className="text-[10px] text-slate-400">
                       Model AI memproses dan menyusun jawaban menggunakan token acak tanpa pernah mengetahui data sensitif asli Anda.
@@ -982,6 +1084,39 @@ export function ProvidersPage() {
                     <p className="text-[10px] text-slate-400">
                       Privacy Proxy secara transparan memulihkan token kembali ke data asli sebelum diserahkan ke aplikasi/IDE Anda.
                     </p>
+                  </div>
+                )}
+
+                {/* Token Mapping Legend Table */}
+                {tokenLegend.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-2">
+                    <div className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Token Transformation Legend</span>
+                      <span className="text-slate-500 font-normal ml-1">— {tokenLegend.length} entities intercepted</span>
+                    </div>
+                    <div className="overflow-x-auto rounded-xl border border-slate-800">
+                      <table className="w-full text-[11px] font-mono">
+                        <thead>
+                          <tr className="bg-slate-900/80 border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-400">
+                            <th className="px-3 py-2 text-left">Entity Type</th>
+                            <th className="px-3 py-2 text-left">Surrogate Token Sent to AI</th>
+                            <th className="px-3 py-2 text-left">Original Sensitive Value</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/50">
+                          {tokenLegend.map((entry, idx) => (
+                            <tr key={idx} className="bg-slate-950 hover:bg-slate-900/50 transition">
+                              <td className="px-3 py-2">
+                                <EntityTypeBadge type={entry.entityType} />
+                              </td>
+                              <td className="px-3 py-2 text-blue-300">{entry.token}</td>
+                              <td className="px-3 py-2 text-emerald-300">{entry.originalValue}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>

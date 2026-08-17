@@ -6,6 +6,7 @@ import { config } from '../config/index.js';
 export interface TokenVault {
   getOrCreate(sessionId: string, entityType: string, value: string): Promise<string>;
   restore(sessionId: string, token: string): Promise<string | null>;
+  listSessionTokens(sessionId: string): Promise<Map<string, string>>;
   listSessions(): Promise<ActiveSession[]>;
   deleteSession(sessionId: string): Promise<boolean>;
   ping(): Promise<boolean>;
@@ -148,6 +149,41 @@ export class RedisTokenVault implements TokenVault {
       return entry.value;
     }
     return null;
+  }
+
+  async listSessionTokens(sessionId: string): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
+    const now = Date.now();
+
+    if (this.redis && this.isConnected) {
+      try {
+        const pattern = `privacy:v1:session:${sessionId}:token:*`;
+        const keys = await this.redis.keys(pattern);
+        if (keys.length > 0) {
+          const values = await this.redis.mget(...keys);
+          for (let i = 0; i < keys.length; i++) {
+            const val = values[i];
+            const key = keys[i];
+            if (val !== null && val !== undefined && key !== undefined) {
+              // Extract token from key: privacy:v1:session:<sid>:token:<token>
+              const token = key.replace(`privacy:v1:session:${sessionId}:token:`, '');
+              map.set(token, val);
+            }
+          }
+        }
+        return map;
+      } catch {}
+    }
+
+    // In-memory fallback
+    const prefix = `privacy:v1:session:${sessionId}:token:`;
+    for (const [key, entry] of this.memoryStore.entries()) {
+      if (key.startsWith(prefix) && entry.expiresAt > now) {
+        const token = key.replace(prefix, '');
+        map.set(token, entry.value);
+      }
+    }
+    return map;
   }
 
   async listSessions(): Promise<ActiveSession[]> {
