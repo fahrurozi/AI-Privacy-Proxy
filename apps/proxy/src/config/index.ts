@@ -1,5 +1,37 @@
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 import { PrivacyMode } from '@ai-privacy-proxy/shared';
+
+// Automatically load .env file if present in workspace or proxy dir
+const envCandidates = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '../../.env'),
+  path.resolve(process.cwd(), '../.env'),
+];
+
+for (const p of envCandidates) {
+  if (fs.existsSync(p)) {
+    try {
+      const content = fs.readFileSync(p, 'utf-8');
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const idx = trimmed.indexOf('=');
+          const key = trimmed.slice(0, idx).trim();
+          let val = trimmed.slice(idx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.slice(1, -1);
+          }
+          if (process.env[key] === undefined) {
+            process.env[key] = val;
+          }
+        }
+      }
+      break;
+    } catch {}
+  }
+}
 
 const ConfigSchema = z.object({
   PORT: z.coerce.number().default(8080),
