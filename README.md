@@ -67,7 +67,84 @@
   Delivered Safe     │                  │  (SSE / Non-Stream)   │     Vault    │
   ◄───────────────── │ ─────────────────┴───────────────────────┘              │
                      │    6. Real-time Plaintext Restored                      │
-                     └─────────────────────────────────────────────────────────┘
+                     └───────────────────────────────┬─────────────────────────┘
+```
+
+### 🔬 End-to-End Payload Lifecycle Example
+
+Berikut gambaran nyata transformasi data dari sisi Client, saat melintasi Privacy Gateway, hingga diproses oleh Cloud AI:
+
+#### 1️⃣ Request Dikirim oleh Client (Prompt Mengandung Data Sensitif)
+Client/IDE mengirim request biasa yang berisi nama orang, email, dan alamat dompet crypto:
+```json
+// POST http://localhost:8080/p/openai/v1/chat/completions
+{
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Please send 2.5 ETH from Alice Walker (alice@techcorp.com) to wallet 0x71C8F794B32145429631994304244a1234567890."
+    }
+  ]
+}
+```
+
+#### 2️⃣ Privacy Gateway Menghasilkan Token & Disimpan di In-Memory Vault
+Proxy mencegat request, mendeteksi entitas PII via Presidio NLP, lalu membuat *cryptographic surrogate token* unik:
+
+| Entity Type | Sensitive Value Asli | Surrogate Token (Sent to AI) |
+|---|---|---|
+| `PERSON` | `Alice Walker` | `[8b4b7a8b:PERSON_001]` |
+| `EMAIL_ADDRESS` | `alice@techcorp.com` | `[8b4b7a8b:EMAIL_ADDRESS_001]` |
+| `ETHEREUM_ADDRESS` | `0x71C8F794B32145429631994304244a1234567890` | `[8b4b7a8b:ETHEREUM_ADDRESS_001]` |
+
+> 🛡️ **Zero-Leak Guarantee:** Mapping ini disimpan di Redis Vault dengan TTL sementara. Nilai sensitif asli **TIDAK PERNAH** dikirim keluar ke internet ataupun dicatat di log disk.
+
+#### 3️⃣ Payload Sanitasi Diterima oleh Cloud AI Provider (Zero PII Leak)
+Provider AI (OpenAI / Anthropic / 9router) hanya menerima token acak:
+```json
+// Upstream Request received by Cloud AI Provider
+{
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Please send 2.5 ETH from [8b4b7a8b:PERSON_001] ([8b4b7a8b:EMAIL_ADDRESS_001]) to wallet [8b4b7a8b:ETHEREUM_ADDRESS_001]."
+    }
+  ]
+}
+```
+
+#### 4️⃣ Cloud AI Menjawab Menggunakan Surrogate Tokens
+Model AI memproses logika prompt dan mengembalikan jawaban yang mereferensikan surrogate token:
+```json
+// Raw Response from Cloud AI Provider
+{
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "I have prepared the transaction of 2.5 ETH from [8b4b7a8b:PERSON_001] ([8b4b7a8b:EMAIL_ADDRESS_001]) to [8b4b7a8b:ETHEREUM_ADDRESS_001]."
+      }
+    }
+  ]
+}
+```
+
+#### 5️⃣ Gateway Memulihkan Data Asli Secara Transparan ke Client
+Detokenizer (termasuk streaming SSE) memulihkan token kembali ke nilai aslinya secara *real-time* sebelum diserahkan ke client:
+```json
+// Final Detokenized Response Received by Client / IDE
+{
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "I have prepared the transaction of 2.5 ETH from Alice Walker (alice@techcorp.com) to 0x71C8F794B32145429631994304244a1234567890."
+      }
+    }
+  ]
+}
 ```
 
 ---
