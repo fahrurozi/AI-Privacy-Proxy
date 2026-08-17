@@ -37,6 +37,8 @@ export class AdminMetricsTracker {
     path: string;
     upstreamStatus?: number | undefined;
     clientIp?: string | undefined;
+    providerId?: string | undefined;
+    llmLatencyMs?: number | undefined;
   }) {
     this.totalRequests += 1;
     if (event.action === 'BLOCK') {
@@ -44,7 +46,10 @@ export class AdminMetricsTracker {
     }
     this.tokensGenerated += event.tokensCount;
 
-    for (const ent of event.entitiesDetected) {
+    // Deduplicate entities before counting / storing
+    const uniqueEntities = Array.from(new Set(event.entitiesDetected));
+
+    for (const ent of uniqueEntities) {
       this.entityCounts[ent] = (this.entityCounts[ent] || 0) + 1;
     }
 
@@ -58,17 +63,28 @@ export class AdminMetricsTracker {
       if (this.proxyLatencies.length > 100) this.proxyLatencies.shift();
     }
 
+    // Compute timing breakdown:
+    // llmLatencyMs = proxyLatencyMs - presidioLatencyMs - proxy overhead
+    // proxyOverheadMs = presidioLatencyMs + tokenization overhead (~5ms)
+    const llmLatencyMs = event.llmLatencyMs ?? Math.max(0, event.proxyLatencyMs - event.presidioLatencyMs - 10);
+    const proxyOverheadMs = Math.max(0, event.proxyLatencyMs - llmLatencyMs);
+
     this.auditLogs.unshift({
       id: event.requestId,
       timestamp: Date.now(),
       requestId: event.requestId,
       sessionId: event.sessionId,
       action: event.action,
-      entitiesDetected: event.entitiesDetected,
-      entityCount: event.entitiesDetected.length,
+      entitiesDetected: uniqueEntities,
+      entityCount: uniqueEntities.length,
       path: event.path,
       clientIp: event.clientIp,
       upstreamStatus: event.upstreamStatus,
+      providerId: event.providerId,
+      presidioLatencyMs: event.presidioLatencyMs,
+      llmLatencyMs,
+      proxyOverheadMs,
+      totalLatencyMs: event.proxyLatencyMs,
     });
 
     if (this.auditLogs.length > 500) {

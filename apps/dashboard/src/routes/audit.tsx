@@ -43,6 +43,7 @@ export function AuditPage() {
   const [search, setSearch] = useState('');
   const [filterAction, setFilterAction] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterProvider, setFilterProvider] = useState<string>('ALL');
   const [selectedEntities, setSelectedEntities] = useState<string[]>([]);
   const [isEntityDropdownOpen, setIsEntityDropdownOpen] = useState(false);
   const entityDropdownRef = useRef<HTMLDivElement>(null);
@@ -87,6 +88,17 @@ export function AuditPage() {
     return Array.from(set).sort();
   }, [events]);
 
+  // Extract all unique providers present across audit events
+  const allAvailableProviders = useMemo(() => {
+    const set = new Set<string>();
+    for (const ev of events) {
+      if (ev.providerId) {
+        set.add(ev.providerId);
+      }
+    }
+    return Array.from(set).sort();
+  }, [events]);
+
   const toggleEntitySelection = (entity: string) => {
     setSelectedEntities((prev) =>
       prev.includes(entity) ? prev.filter((e) => e !== entity) : [...prev, entity]
@@ -97,6 +109,7 @@ export function AuditPage() {
     setSearch('');
     setFilterAction('ALL');
     setFilterStatus('ALL');
+    setFilterProvider('ALL');
     setSelectedEntities([]);
   };
 
@@ -133,7 +146,14 @@ export function AuditPage() {
         if (filterStatus === '5XX' && code < 500) return false;
       }
 
-      // 3. Multi-Select Entities Filter
+      // 3. Provider Filter
+      if (filterProvider !== 'ALL') {
+        if (!e.providerId || e.providerId.toLowerCase() !== filterProvider.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 4. Multi-Select Entities Filter
       if (selectedEntities.length > 0) {
         const hasMatchingEntity = selectedEntities.some((selected) =>
           e.entitiesDetected.includes(selected)
@@ -141,39 +161,67 @@ export function AuditPage() {
         if (!hasMatchingEntity) return false;
       }
 
-      // 4. Search text
+      // 5. Search text
       if (search.trim()) {
         const q = search.toLowerCase();
         const matchesRequestId = e.requestId.toLowerCase().includes(q);
         const matchesSessionId = e.sessionId.toLowerCase().includes(q);
         const matchesPath = e.path.toLowerCase().includes(q);
+        const matchesProvider = (e.providerId || '').toLowerCase().includes(q);
         const matchesClientIp = (e.clientIp || '').toLowerCase().includes(q);
         const matchesEntities = e.entitiesDetected.some((ent) => ent.toLowerCase().includes(q));
 
-        if (!matchesRequestId && !matchesSessionId && !matchesPath && !matchesClientIp && !matchesEntities) {
+        if (
+          !matchesRequestId &&
+          !matchesSessionId &&
+          !matchesPath &&
+          !matchesProvider &&
+          !matchesClientIp &&
+          !matchesEntities
+        ) {
           return false;
         }
       }
 
       return true;
     });
-  }, [events, filterAction, filterStatus, selectedEntities, search]);
+  }, [events, filterAction, filterStatus, filterProvider, selectedEntities, search]);
 
   const exportCsv = () => {
     if (filteredEvents.length === 0) return;
-    const header = ['Timestamp', 'RequestId', 'SessionId', 'Action', 'EntitiesDetected', 'Path', 'ClientIP', 'Status'];
+    const header = [
+      'Timestamp',
+      'RequestId',
+      'SessionId',
+      'Provider',
+      'Action',
+      'EntitiesDetected',
+      'Path',
+      'TotalLatencyMs',
+      'PresidioLatencyMs',
+      'LlmLatencyMs',
+      'ProxyOverheadMs',
+      'ClientIP',
+      'Status',
+    ];
     const rows = filteredEvents.map((e) => [
       new Date(e.timestamp).toISOString(),
       e.requestId,
       e.sessionId,
+      e.providerId || 'default',
       e.action,
       `"${e.entitiesDetected.join(', ')}"`,
       `"${e.path}"`,
+      e.totalLatencyMs || '',
+      e.presidioLatencyMs || '',
+      e.llmLatencyMs || '',
+      e.proxyOverheadMs || '',
       `"${e.clientIp || ''}"`,
       e.upstreamStatus || 200,
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const csvContent =
+      'data:text/csv;charset=utf-8,' + [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
@@ -196,7 +244,12 @@ export function AuditPage() {
     }
   };
 
-  const hasActiveFilters = search.trim() !== '' || filterAction !== 'ALL' || filterStatus !== 'ALL' || selectedEntities.length > 0;
+  const hasActiveFilters =
+    search.trim() !== '' ||
+    filterAction !== 'ALL' ||
+    filterStatus !== 'ALL' ||
+    filterProvider !== 'ALL' ||
+    selectedEntities.length > 0;
 
   return (
     <div className="space-y-6">
@@ -207,7 +260,7 @@ export function AuditPage() {
             <Shield className="w-6 h-6 text-blue-400" /> Privacy Audit Trail
           </h1>
           <p className="text-sm text-slate-400">
-            Real-time audit records of PII interception, cryptographic surrogate tokenization, and policy actions.
+            Real-time audit records of PII interception, cryptographic surrogate tokenization, process latency breakdown, and policy actions.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -232,20 +285,36 @@ export function AuditPage() {
 
       {/* Advanced Filter Bar */}
       <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3 shadow-lg">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* 1. Search Box */}
-          <div className="relative md:col-span-1">
+          <div className="relative">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search request, session, IP..."
+              placeholder="Search req, session, IP..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
             />
           </div>
 
-          {/* 2. Action Filter */}
+          {/* 2. Provider Filter */}
+          <div>
+            <select
+              value={filterProvider}
+              onChange={(e) => setFilterProvider(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
+            >
+              <option value="ALL">All Providers</option>
+              {allAvailableProviders.map((p) => (
+                <option key={p} value={p}>
+                  Provider: {p}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Action Filter */}
           <div>
             <select
               value={filterAction}
@@ -260,21 +329,21 @@ export function AuditPage() {
             </select>
           </div>
 
-          {/* 3. HTTP Status Filter */}
+          {/* 4. HTTP Status Filter */}
           <div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
             >
-              <option value="ALL">All HTTP Statuses</option>
+              <option value="ALL">All Statuses</option>
               <option value="2XX">2xx OK (Success)</option>
               <option value="4XX">4xx Blocked / Bad Request</option>
               <option value="5XX">5xx Upstream Errors</option>
             </select>
           </div>
 
-          {/* 4. Multi-Select Entities Dropdown */}
+          {/* 5. Multi-Select Entities Dropdown */}
           <div className="relative" ref={entityDropdownRef}>
             <button
               type="button"
@@ -290,7 +359,7 @@ export function AuditPage() {
                 <span>
                   {selectedEntities.length === 0
                     ? 'Filter Entities (All)'
-                    : `Entities (${selectedEntities.length} selected)`}
+                    : `Entities (${selectedEntities.length})`}
                 </span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -347,6 +416,15 @@ export function AuditPage() {
               <Filter className="w-3 h-3 text-blue-400" /> Active Filters:
             </span>
 
+            {filterProvider !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 border border-slate-700 text-[11px]">
+                Provider: <strong>{filterProvider}</strong>
+                <button type="button" onClick={() => setFilterProvider('ALL')} className="hover:text-red-400">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
             {filterAction !== 'ALL' && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 border border-slate-700 text-[11px]">
                 Action: <strong>{filterAction}</strong>
@@ -396,8 +474,10 @@ export function AuditPage() {
               <tr>
                 <th className="px-4 py-3.5 w-10"></th>
                 <th className="px-4 py-3.5">Timestamp</th>
+                <th className="px-4 py-3.5">Provider</th>
                 <th className="px-4 py-3.5">Policy Action</th>
                 <th className="px-4 py-3.5">Entities Detected</th>
+                <th className="px-4 py-3.5">Process Time</th>
                 <th className="px-4 py-3.5">Target Path</th>
                 <th className="px-4 py-3.5 text-right">Status</th>
               </tr>
@@ -433,6 +513,17 @@ export function AuditPage() {
                           {formatDate(e.timestamp)}
                         </td>
 
+                        {/* Provider Badge */}
+                        <td className="px-4 py-3 text-xs font-mono">
+                          {e.providerId ? (
+                            <span className="px-2 py-0.5 rounded-md bg-purple-950/60 text-purple-300 border border-purple-800/60 font-medium">
+                              {e.providerId}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 text-[11px]">default</span>
+                          )}
+                        </td>
+
                         <td className="px-4 py-3">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold border ${getActionBadgeColor(
@@ -446,7 +537,8 @@ export function AuditPage() {
                         <td className="px-4 py-3">
                           {e.entitiesDetected.length > 0 ? (
                             <div className="flex flex-wrap items-center gap-1.5">
-                              {e.entitiesDetected.map((ent, idx) => (
+                              {/* Deduplicated unique entities */}
+                              {Array.from(new Set(e.entitiesDetected)).map((ent, idx) => (
                                 <span
                                   key={idx}
                                   className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-950 text-blue-300 border border-slate-700/80 font-medium"
@@ -460,7 +552,32 @@ export function AuditPage() {
                           )}
                         </td>
 
-                        <td className="px-4 py-3 font-mono text-xs text-slate-300">
+                        {/* Process Time / Latency Breakdown Column */}
+                        <td className="px-4 py-3 text-xs font-mono whitespace-nowrap">
+                          {e.totalLatencyMs !== undefined ? (
+                            <div className="space-y-0.5">
+                              <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+                                <span>⚡ {e.totalLatencyMs}ms</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                {e.llmLatencyMs !== undefined && (
+                                  <span className="text-amber-400/90" title="LLM Roundtrip Time">
+                                    LLM {e.llmLatencyMs}ms
+                                  </span>
+                                )}
+                                {e.presidioLatencyMs !== undefined && e.presidioLatencyMs > 0 && (
+                                  <span className="text-blue-400/90" title="Presidio PII Interception Time">
+                                    PII {e.presidioLatencyMs}ms
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500">-</span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-3 font-mono text-xs text-slate-300 truncate max-w-[200px]">
                           {e.path}
                         </td>
 
@@ -480,7 +597,7 @@ export function AuditPage() {
                       {/* Dropdown Detail Accordion Row */}
                       {isExpanded && (
                         <tr className="bg-slate-950/80 border-b border-slate-800/80">
-                          <td colSpan={6} className="p-4 sm:p-5">
+                          <td colSpan={8} className="p-4 sm:p-5">
                             <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-4 shadow-inner">
                               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
                                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
@@ -489,6 +606,62 @@ export function AuditPage() {
                                 </div>
                                 <div className="text-[11px] text-slate-400 font-mono">
                                   {new Date(e.timestamp).toUTCString()}
+                                </div>
+                              </div>
+
+                              {/* Process Time / Latency Bottleneck Breakdown Card */}
+                              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/90 space-y-3">
+                                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                                  <span className="flex items-center gap-1.5">
+                                    <Activity className="w-3.5 h-3.5 text-blue-400" /> Latency & Bottleneck Analysis
+                                  </span>
+                                  <span className="font-mono text-emerald-400 text-xs">
+                                    Total: {e.totalLatencyMs ?? 0}ms
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+                                  <div className="bg-slate-900/90 p-2.5 rounded-lg border border-amber-900/40">
+                                    <div className="text-[10px] text-amber-400 uppercase font-semibold">
+                                      LLM Upstream Time
+                                    </div>
+                                    <div className="text-base font-bold text-amber-300 mt-1">
+                                      {e.llmLatencyMs ?? 0}ms
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                      {e.totalLatencyMs
+                                        ? `${Math.round(((e.llmLatencyMs || 0) / e.totalLatencyMs) * 100)}% of total`
+                                        : 'Cloud model processing'}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-slate-900/90 p-2.5 rounded-lg border border-blue-900/40">
+                                    <div className="text-[10px] text-blue-400 uppercase font-semibold">
+                                      PII Presidio Analysis
+                                    </div>
+                                    <div className="text-base font-bold text-blue-300 mt-1">
+                                      {e.presidioLatencyMs ?? 0}ms
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                      {e.totalLatencyMs
+                                        ? `${Math.round(((e.presidioLatencyMs || 0) / e.totalLatencyMs) * 100)}% of total`
+                                        : 'Regex/NLP detection'}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-slate-900/90 p-2.5 rounded-lg border border-emerald-900/40">
+                                    <div className="text-[10px] text-emerald-400 uppercase font-semibold">
+                                      Proxy Overhead
+                                    </div>
+                                    <div className="text-base font-bold text-emerald-300 mt-1">
+                                      {e.proxyOverheadMs ?? 0}ms
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                      {e.totalLatencyMs
+                                        ? `${Math.round(((e.proxyOverheadMs || 0) / e.totalLatencyMs) * 100)}% of total`
+                                        : 'Vault + token swap'}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
 
@@ -543,6 +716,16 @@ export function AuditPage() {
                                   </div>
                                 </div>
 
+                                {/* Provider ID */}
+                                <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1">
+                                  <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                                    Upstream Provider ID
+                                  </div>
+                                  <div className="font-mono text-purple-300 text-[11px]">
+                                    {e.providerId || 'default'}
+                                  </div>
+                                </div>
+
                                 {/* Client IP */}
                                 <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1">
                                   <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
@@ -575,27 +758,17 @@ export function AuditPage() {
                                     {e.action === 'PASS' && '🛡️ Clean Request Passed to Upstream'}
                                   </div>
                                 </div>
-
-                                {/* HTTP Status */}
-                                <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-1">
-                                  <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-                                    Upstream Response Code
-                                  </div>
-                                  <div className="font-mono text-slate-200 text-[11px]">
-                                    HTTP {e.upstreamStatus || (e.action === 'BLOCK' ? 400 : 200)}
-                                  </div>
-                                </div>
                               </div>
 
                               {/* Detected Entities Breakdown */}
                               <div className="bg-slate-950 p-3 rounded-lg border border-slate-800/80 space-y-2">
                                 <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
                                   <Layers className="w-3 h-3 text-blue-400" />
-                                  <span>Entities Intercepted & Sanitized ({e.entitiesDetected.length})</span>
+                                  <span>Entities Intercepted & Sanitized ({Array.from(new Set(e.entitiesDetected)).length})</span>
                                 </div>
                                 {e.entitiesDetected.length > 0 ? (
                                   <div className="flex flex-wrap gap-2">
-                                    {e.entitiesDetected.map((ent, idx) => (
+                                    {Array.from(new Set(e.entitiesDetected)).map((ent, idx) => (
                                       <div
                                         key={idx}
                                         className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700/80 flex items-center gap-1.5 text-xs font-mono text-blue-200 shadow-sm"
@@ -628,7 +801,7 @@ export function AuditPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500 text-sm">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500 text-sm">
                     {loading ? (
                       'Loading audit records...'
                     ) : hasActiveFilters ? (

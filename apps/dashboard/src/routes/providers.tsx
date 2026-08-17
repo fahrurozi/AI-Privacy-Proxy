@@ -25,6 +25,7 @@ import {
   Lock,
   Cpu,
   Layers,
+  Activity,
 } from 'lucide-react';
 
 // ── Color-coded entity type badge ────────────────────────────────────────────
@@ -153,6 +154,9 @@ export function ProvidersPage() {
     tokensUsed?: number;
     status: number;
     sessionId?: string;
+    presidioMs?: number;
+    llmMs?: number;
+    proxyOverheadMs?: number;
   } | null>(null);
   const [tokenLegend, setTokenLegend] = useState<{ token: string; entityType: string; originalValue: string }[]>([]);
   const [activePlaygroundTab, setActivePlaygroundTab] = useState<'client' | 'sent_external' | 'raw_external'>('client');
@@ -469,15 +473,22 @@ export function ProvidersPage() {
       }
 
       const sessionId = response.headers.get('x-privacy-session-id') || '';
+      const totalMs = parseInt(response.headers.get('x-privacy-total-ms') || '0') || latencyMs;
+      const presidioMs = parseInt(response.headers.get('x-privacy-presidio-ms') || '0');
+      const llmMs = parseInt(response.headers.get('x-privacy-llm-ms') || '0');
+      const proxyOverheadMs = parseInt(response.headers.get('x-privacy-proxy-overhead-ms') || '0');
 
       setPlaygroundResponse({
         text: assistantText,
         sanitizedPrompt: sanitizedPrompt || playgroundPrompt,
         rawUpstreamResponse: rawUpstreamResponse,
-        latencyMs,
+        latencyMs: totalMs,
         tokensUsed,
         status: response.status,
         sessionId,
+        presidioMs,
+        llmMs,
+        proxyOverheadMs,
       });
       setActivePlaygroundTab('client');
 
@@ -979,11 +990,62 @@ export function ProvidersPage() {
                       HTTP {playgroundResponse.status} OK
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
-                    <span>⚡ {playgroundResponse.latencyMs}ms</span>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+                    <span>⚡ {playgroundResponse.latencyMs}ms total</span>
                     {playgroundResponse.tokensUsed && <span>📊 {playgroundResponse.tokensUsed} tokens</span>}
                   </div>
                 </div>
+
+                {/* Process Time Breakdown */}
+                {(playgroundResponse.llmMs! > 0 || playgroundResponse.presidioMs! > 0) && (
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
+                      <Activity className="w-3 h-3 text-blue-400" />
+                      <span>Process Time Breakdown</span>
+                    </div>
+                    <div className="space-y-2">
+                      {/* LLM bar */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-amber-400 font-semibold w-24 shrink-0">LLM Latency</span>
+                        <div className="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, ((playgroundResponse.llmMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-amber-400 font-mono w-14 text-right shrink-0">
+                          {playgroundResponse.llmMs ?? 0}ms
+                        </span>
+                      </div>
+                      {/* Presidio bar */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-blue-400 font-semibold w-24 shrink-0">PII Analysis</span>
+                        <div className="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, ((playgroundResponse.presidioMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-blue-400 font-mono w-14 text-right shrink-0">
+                          {playgroundResponse.presidioMs ?? 0}ms
+                        </span>
+                      </div>
+                      {/* Proxy overhead bar */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-emerald-400 font-semibold w-24 shrink-0">Proxy Overhead</span>
+                        <div className="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, ((playgroundResponse.proxyOverheadMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-emerald-400 font-mono w-14 text-right shrink-0">
+                          {playgroundResponse.proxyOverheadMs ?? 0}ms
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 3-View Tab Switcher */}
                 <div className="grid grid-cols-3 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800 text-[11px] font-medium">

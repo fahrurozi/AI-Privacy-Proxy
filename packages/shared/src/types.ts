@@ -74,7 +74,13 @@ export interface AuditEvent {
   entityCount: number;
   clientIp?: string | undefined;
   path: string;
+  providerId?: string | undefined;
   upstreamStatus?: number | undefined;
+  // Timing breakdown
+  presidioLatencyMs?: number | undefined;   // Presidio PII analysis time
+  proxyOverheadMs?: number | undefined;     // Our proxy processing overhead (total - llm)
+  llmLatencyMs?: number | undefined;        // Estimated LLM roundtrip time
+  totalLatencyMs?: number | undefined;      // End-to-end total
 }
 
 export interface UpstreamProvider {

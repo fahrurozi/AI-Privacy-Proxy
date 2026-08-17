@@ -9,16 +9,26 @@ import {
 } from '../proxy/response-pipeline.js';
 import { metricsTracker } from './admin.js';
 
+// Extract provider ID from path like /p/<providerId>/... or /provider/<providerId>/...
+function extractProviderId(path: string): string | undefined {
+  const m = path.match(/^\/(?:p|provider)\/([a-zA-Z0-9_-]+)/i);
+  return m?.[1]?.toLowerCase();
+}
+
 export async function handleProxyRequest(req: FastifyRequest, reply: FastifyReply) {
   const path = req.url;
   const startTime = Date.now();
   const requestId = randomUUID();
+  const providerId = extractProviderId(path);
 
   const processed = await processIncomingRequest(
     path,
     req.headers,
     req.body as any,
   );
+
+  // Track how long our pre-processing (presidio + tokenization) took
+  const preProcessMs = Date.now() - startTime;
 
   if (processed.blocked) {
     metricsTracker.recordRequest({
@@ -32,6 +42,7 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       path,
       upstreamStatus: 400,
       clientIp: req.ip,
+      providerId,
     });
 
     return reply.status(400).send({
@@ -44,12 +55,14 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
   }
 
   try {
+    const upstreamStartTime = Date.now();
     const upstreamResponse = await forwardUpstreamRequest(
       path,
       req.method,
       req.headers,
       processed.sanitizedBody ? Buffer.from(processed.sanitizedBody, 'utf-8') : null,
     );
+    const llmLatencyMs = Date.now() - upstreamStartTime;
 
     const upstreamStatus = upstreamResponse.statusCode;
     const contentType = (upstreamResponse.headers['content-type'] as string) || '';
@@ -92,9 +105,11 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
         tokensCount: processed.tokensCreated.length,
         presidioLatencyMs: processed.presidioLatencyMs,
         proxyLatencyMs: Date.now() - startTime,
+        llmLatencyMs,
         path,
         upstreamStatus,
         clientIp: req.ip,
+        providerId,
       });
 
       return reply.send(transformedStream);
@@ -107,6 +122,8 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       adapter,
     );
 
+    const totalMs = Date.now() - startTime;
+
     metricsTracker.recordRequest({
       requestId,
       sessionId: processed.sessionId,
@@ -114,14 +131,21 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       entitiesDetected: processed.entitiesDetected,
       tokensCount: processed.tokensCreated.length,
       presidioLatencyMs: processed.presidioLatencyMs,
-      proxyLatencyMs: Date.now() - startTime,
+      proxyLatencyMs: totalMs,
+      llmLatencyMs,
       path,
       upstreamStatus,
       clientIp: req.ip,
+      providerId,
     });
 
     // Always expose session ID so clients can fetch token legend
     reply.header('x-privacy-session-id', processed.sessionId);
+    // Expose timing breakdown for playground inspector
+    reply.header('x-privacy-total-ms', String(totalMs));
+    reply.header('x-privacy-presidio-ms', String(processed.presidioLatencyMs));
+    reply.header('x-privacy-llm-ms', String(llmLatencyMs));
+    reply.header('x-privacy-proxy-overhead-ms', String(Math.max(0, totalMs - llmLatencyMs)));
 
     if (req.headers['x-privacy-debug'] === 'true') {
       reply.header('x-privacy-sanitized-body', Buffer.from(processed.sanitizedBody || '').toString('base64'));
@@ -151,6 +175,7 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       path,
       upstreamStatus: 502,
       clientIp: req.ip,
+      providerId,
     });
 
     return reply.status(502).send({
