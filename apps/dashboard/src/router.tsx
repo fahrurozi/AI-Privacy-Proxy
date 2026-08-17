@@ -228,7 +228,7 @@ export function DashboardApp() {
             <button
               onClick={() => setShowGuideModal(true)}
               className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 text-blue-300 text-xs font-semibold rounded-lg border border-blue-500/30 transition shadow-sm"
-              title="Buka panduan lengkap sistem Privacy Proxy"
+              title="Open comprehensive system architecture guide"
             >
               <BookOpen className="w-3.5 h-3.5 text-blue-400" /> Guide
             </button>

@@ -687,7 +687,7 @@ export function PolicyPage() {
                 )}
                 {selectedPolicyForDetail.action === 'REDACT' && (
                   <span>
-                    <strong>REDACT (1 Arah):</strong> The detected entity is permanently masked with <code className="text-yellow-400 font-mono">[REDACTED_{selectedPolicyForDetail.entityType}]</code>. The original value is <strong>not saved in the vault</strong>, so it remains redacted in the response and is <strong>never restored to the original plaintext</strong>.
+                    <strong>REDACT (1-Way Permanent):</strong> The detected entity is permanently masked with <code className="text-yellow-400 font-mono">[REDACTED_{selectedPolicyForDetail.entityType}]</code>. The original value is <strong>not saved in the vault</strong>, so it remains redacted in the response and is <strong>never restored to the original plaintext</strong>.
                   </span>
                 )}
                 {selectedPolicyForDetail.action === 'BLOCK' && (

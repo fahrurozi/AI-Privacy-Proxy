@@ -276,7 +276,7 @@ export function ProvidersPage() {
                 </button>
               </div>
               <p className="text-slate-400 text-[11px]">
-                Jalankan perintah ini di terminal sebelum membuka Claude Code:
+                Run this command in your terminal before launching Claude Code:
               </p>
               <div className="p-2.5 bg-slate-900 border border-slate-850 rounded-lg font-mono text-[11px] text-purple-300 break-all">
                 export ANTHROPIC_BASE_URL="{getClaudeBaseUrl(selectedProviderForGuide.id)}"
