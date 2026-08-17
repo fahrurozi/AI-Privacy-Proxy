@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { OverviewPage } from './routes/index.js';
 import { MonitoringPage } from './routes/monitoring.js';
+import { ProvidersPage } from './routes/providers.js';
 import { PolicyPage } from './routes/policy.js';
 import { RecognizersPage } from './routes/recognizers.js';
 import { SessionsPage } from './routes/sessions.js';
@@ -12,6 +13,7 @@ import { isAuthenticated, clearAdminKey } from './lib/api.js';
 import {
   LayoutDashboard,
   Activity,
+  Globe,
   Shield,
   Sparkles,
   KeyRound,
@@ -24,7 +26,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 
-const VALID_PAGES = ['overview', 'monitoring', 'policy', 'recognizers', 'sessions', 'audit', 'settings'];
+const VALID_PAGES = ['overview', 'monitoring', 'providers', 'policy', 'recognizers', 'sessions', 'audit', 'settings'];
 
 function getPageFromUrl(): string {
   const path = window.location.pathname.replace(/\/+$/, '');
@@ -35,7 +37,7 @@ function getPageFromUrl(): string {
     return lastSegment;
   }
 
-  // Check hash fallback (e.g. #/policy or #policy)
+  // Check hash fallback (e.g. #/providers or #providers)
   const hash = window.location.hash.replace(/^#\/?/, '');
   if (VALID_PAGES.includes(hash)) {
     return hash;
@@ -95,6 +97,7 @@ export function DashboardApp() {
   const navigationItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'monitoring', label: 'Live Monitoring', icon: Activity },
+    { id: 'providers', label: 'Providers', icon: Globe },
     { id: 'policy', label: 'Privacy Policies', icon: Shield },
     { id: 'recognizers', label: 'Custom Recognizers', icon: Sparkles },
     { id: 'sessions', label: 'Session Vault', icon: KeyRound },
@@ -108,6 +111,8 @@ export function DashboardApp() {
         return <OverviewPage onNavigate={(p) => navigateTo(p)} />;
       case 'monitoring':
         return <MonitoringPage />;
+      case 'providers':
+        return <ProvidersPage />;
       case 'policy':
         return <PolicyPage />;
       case 'recognizers':
