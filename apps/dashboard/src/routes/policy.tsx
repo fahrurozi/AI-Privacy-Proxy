@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { EntityPolicy, PrivacyAction } from '@ai-privacy-proxy/shared';
 import { fetchApi } from '../lib/api.js';
 import { SlideOverDrawer } from '../components/SlideOverDrawer.js';
@@ -10,14 +10,102 @@ import {
   CheckCircle2,
   AlertCircle,
   Info,
-  Sliders,
+  Play,
   Sparkles,
   ToggleLeft,
   ToggleRight,
-  HelpCircle,
+  FlaskConical,
+  RefreshCw,
+  Copy,
+  Check,
+  ShieldAlert,
+  ArrowRight,
 } from 'lucide-react';
 
 const ACTIONS: PrivacyAction[] = ['TOKENIZE', 'REDACT', 'BLOCK', 'PASS'];
+
+const SAMPLE_DATA: Record<string, string> = {
+  EMAIL_ADDRESS: 'Please reach out to satoshi.nakamoto@bitcoin.org or ceo@anthropic.com regarding the proposal.',
+  ETHEREUM_ADDRESS: 'Send test transaction to 0x71C8F794B32145429631994304244a1234567890 on mainnet.',
+  SOLANA_ADDRESS: 'My wallet public key is 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM on Solana.',
+  PHONE_NUMBER: 'You can contact Dr. Johnson at +1 (555) 234-5678 or mobile 0812-9876-5432.',
+  PERSON: 'The audit report was signed by Alice Walker and Robert Downey yesterday.',
+  IP_ADDRESS: 'Internal proxy cluster is listening on 192.168.1.50 and gateway 10.0.0.1.',
+  CREDIT_CARD: 'Charge card 4532-1234-5678-9010 with expiration date 12/28.',
+  API_KEY: 'My API key is sk-proj-1234567890abcdef1234567890abcdef and AWS key AKIAIOSFODNN7EXAMPLE.',
+  PASSWORD: 'The root database password is SuperSecretAdminPass2026!.',
+  PRIVATE_KEY: 'Export private key 0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d.',
+  SEED_PHRASE: 'seed phrase: apple banana cherry dog elephant fox grape horse igloo jaguar kangaroo lemon',
+  US_SSN: 'Citizen identifier record SSN 000-12-3456.',
+  US_PASSPORT: 'Passport verification document A12345678.',
+};
+
+// Client-side regex simulation helpers for instant playground evaluation
+function simulatePolicyTransformation(
+  text: string,
+  policies: EntityPolicy[],
+): {
+  transformedText: string;
+  detectedEntities: Array<{ entityType: string; matchedText: string; action: PrivacyAction }>;
+  blocked: boolean;
+  blockedEntities: string[];
+} {
+  const detected: Array<{ entityType: string; matchedText: string; action: PrivacyAction }> = [];
+  const blockedEntities: string[] = [];
+  let resultText = text;
+
+  // Patterns for instant client-side testing
+  const regexMap: Record<string, RegExp> = {
+    EMAIL_ADDRESS: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+    ETHEREUM_ADDRESS: /\b0x[a-fA-F0-9]{40}\b/g,
+    SOLANA_ADDRESS: /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g,
+    PHONE_NUMBER: /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b08\d{2}[-.\s]?\d{4}[-.\s]?\d{3,4}\b/g,
+    IP_ADDRESS: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+    CREDIT_CARD: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\b|\b\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4}\b/g,
+    API_KEY: /\b(?:sk-[a-zA-Z0-9_-]{20,}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36})\b/g,
+    PASSWORD: /(?:password|passwd|pwd)\s*[:=]\s*['"]?([^\s'"]+)['"]?/gi,
+    PRIVATE_KEY: /\b(?:0x)?[a-fA-F0-9]{64}\b/g,
+    PERSON: /\b(?:Alice Walker|Robert Downey|John Doe|Jane Smith|Satoshi Nakamoto|Dr\. Johnson)\b/g,
+    US_SSN: /\b\d{3}-\d{2}-\d{4}\b/g,
+  };
+
+  const policyMap = new Map(policies.map((p) => [p.entityType.toUpperCase(), p]));
+  let counter = 1;
+
+  for (const [entityType, pattern] of Object.entries(regexMap)) {
+    const policy = policyMap.get(entityType);
+    if (!policy || policy.enabled === false) continue;
+
+    const matches = Array.from(text.matchAll(pattern));
+    for (const m of matches) {
+      const matchVal = m[1] || m[0];
+      if (!matchVal) continue;
+
+      detected.push({
+        entityType,
+        matchedText: matchVal,
+        action: policy.action,
+      });
+
+      if (policy.action === 'BLOCK') {
+        if (!blockedEntities.includes(entityType)) blockedEntities.push(entityType);
+      } else if (policy.action === 'REDACT') {
+        resultText = resultText.replaceAll(matchVal, `[REDACTED_${entityType}]`);
+      } else if (policy.action === 'TOKENIZE') {
+        const pad = String(counter++).padStart(3, '0');
+        const token = `[PREFIX:${entityType}_${pad}]`;
+        resultText = resultText.replaceAll(matchVal, token);
+      }
+    }
+  }
+
+  return {
+    transformedText: blockedEntities.length > 0 ? '' : resultText,
+    detectedEntities: detected,
+    blocked: blockedEntities.length > 0,
+    blockedEntities,
+  };
+}
 
 export function PolicyPage() {
   const [policies, setPolicies] = useState<EntityPolicy[]>([]);
@@ -25,8 +113,15 @@ export function PolicyPage() {
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Detail Drawer State
+  // Detail Drawer State with Live Playground
   const [selectedPolicyForDetail, setSelectedPolicyForDetail] = useState<EntityPolicy | null>(null);
+  const [detailTestInput, setDetailTestInput] = useState('');
+
+  // Global Sandbox Drawer State
+  const [showGlobalPlayground, setShowGlobalPlayground] = useState(false);
+  const [globalTestInput, setGlobalTestInput] = useState(
+    'Please send 1.5 ETH from satoshi@bitcoin.org to 0x71C8F794B32145429631994304244a1234567890. Call Alice at +1-555-0199 if needed.'
+  );
 
   // Add Entity Drawer State
   const [showAddDrawer, setShowAddDrawer] = useState(false);
@@ -116,6 +211,28 @@ export function PolicyPage() {
     }
   };
 
+  // When opening a detail drawer, set default sample text
+  const openDetailDrawer = (policy: EntityPolicy) => {
+    setSelectedPolicyForDetail(policy);
+    setDetailTestInput(SAMPLE_DATA[policy.entityType] || `Sample testing text for ${policy.entityType}.`);
+  };
+
+  // Evaluation for Single-Entity Detail Playground
+  const singleEntitySimulation = useMemo(() => {
+    if (!selectedPolicyForDetail || !detailTestInput) {
+      return { transformedText: '', detectedEntities: [], blocked: false, blockedEntities: [] };
+    }
+    return simulatePolicyTransformation(detailTestInput, [selectedPolicyForDetail]);
+  }, [selectedPolicyForDetail, detailTestInput]);
+
+  // Evaluation for Global Policy Playground
+  const globalSimulation = useMemo(() => {
+    if (!globalTestInput) {
+      return { transformedText: '', detectedEntities: [], blocked: false, blockedEntities: [] };
+    }
+    return simulatePolicyTransformation(globalTestInput, policies);
+  }, [globalTestInput, policies]);
+
   const getActionBadgeColor = (action: PrivacyAction, enabled?: boolean) => {
     if (enabled === false) {
       return 'bg-slate-800 text-slate-500 border-slate-700';
@@ -134,6 +251,7 @@ export function PolicyPage() {
 
   return (
     <div className="space-y-6">
+      {/* Top Header with Global Playground Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Privacy Policy Settings</h1>
@@ -141,17 +259,26 @@ export function PolicyPage() {
             Define real-time protection actions (TOKENIZE, REDACT, BLOCK, PASS) per detected entity type.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Global Playground Trigger */}
+          <button
+            onClick={() => setShowGlobalPlayground(true)}
+            className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-indigo-600/90 to-blue-600/90 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-indigo-500/20 border border-indigo-400/30 transition"
+          >
+            <FlaskConical className="w-4 h-4 text-indigo-200" /> Try Policy Playground
+          </button>
+
           <button
             onClick={() => setShowAddDrawer(true)}
             className="flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition"
           >
             <Plus className="w-4 h-4" /> Add Entity Rule
           </button>
+
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
           >
             <Save className="w-4 h-4" /> {saving ? 'Applying...' : 'Apply Changes'}
           </button>
@@ -238,18 +365,10 @@ export function PolicyPage() {
                       </span>
                     </td>
 
+                    {/* Actions Column: Enable/Disable on LEFT, then Detail, then Delete */}
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {/* Detail Button */}
-                        <button
-                          onClick={() => setSelectedPolicyForDetail(p)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition"
-                          title="View entity details and behavior explanation"
-                        >
-                          <Info className="w-3.5 h-3.5 text-blue-400" /> Detail
-                        </button>
-
-                        {/* Enable/Disable Toggle Button */}
+                        {/* 1. Enable/Disable Toggle Button (ON LEFT) */}
                         <button
                           onClick={() => handleToggleEnabled(p.entityType)}
                           className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded border transition ${
@@ -260,10 +379,19 @@ export function PolicyPage() {
                           title={isEnabled ? 'Click to disable rule' : 'Click to enable rule'}
                         >
                           {isEnabled ? <ToggleRight className="w-4 h-4 text-emerald-400" /> : <ToggleLeft className="w-4 h-4 text-slate-500" />}
-                          {isEnabled ? 'Enabled' : 'Disabled'}
+                          <span>{isEnabled ? 'Enabled' : 'Disabled'}</span>
                         </button>
 
-                        {/* Delete Button */}
+                        {/* 2. Detail Button (TO THE RIGHT OF ENABLE/DISABLE) */}
+                        <button
+                          onClick={() => openDetailDrawer(p)}
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition"
+                          title="View entity details, behavior explanation, and test playground"
+                        >
+                          <Info className="w-3.5 h-3.5 text-blue-400" /> Detail
+                        </button>
+
+                        {/* 3. Delete Button */}
                         <button
                           onClick={() => handleDeletePolicy(p.entityType)}
                           className="p-1 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 transition ml-1"
@@ -281,12 +409,13 @@ export function PolicyPage() {
         </div>
       </div>
 
-      {/* 1. RIGHT SLIDE-OVER DRAWER: Entity Detail & Explanation */}
+      {/* 1. RIGHT SLIDE-OVER DRAWER: Entity Detail with Interactive Playground */}
       <SlideOverDrawer
         isOpen={selectedPolicyForDetail !== null}
         onClose={() => setSelectedPolicyForDetail(null)}
         title={selectedPolicyForDetail ? `Entity Policy: ${selectedPolicyForDetail.entityType}` : ''}
-        subtitle="Detailed behavior explanation and action details"
+        subtitle="Detailed behavior explanation & interactive live sandbox"
+        widthClass="max-w-xl"
         footer={
           <button
             onClick={() => setSelectedPolicyForDetail(null)}
@@ -298,13 +427,15 @@ export function PolicyPage() {
       >
         {selectedPolicyForDetail && (
           <div className="space-y-5">
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-              <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Description</span>
+            {/* Description Card */}
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5">
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Description & Pattern Scope</span>
               <p className="text-xs text-slate-200 leading-relaxed">
                 {selectedPolicyForDetail.description || 'No specific description provided for this entity rule.'}
               </p>
             </div>
 
+            {/* Action Card */}
             <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
               <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Current Action Details</span>
               <div className="flex items-center gap-2">
@@ -312,24 +443,24 @@ export function PolicyPage() {
                   {selectedPolicyForDetail.action}
                 </span>
                 <span className="text-xs text-slate-300">
-                  {selectedPolicyForDetail.enabled !== false ? 'Currently Active' : 'Currently Disabled (Pass-through)'}
+                  {selectedPolicyForDetail.enabled !== false ? 'Rule is Enabled' : 'Rule is Disabled (Passing plaintext)'}
                 </span>
               </div>
 
               <div className="text-xs text-slate-400 leading-relaxed pt-1">
                 {selectedPolicyForDetail.action === 'TOKENIZE' && (
                   <span>
-                    <strong>TOKENIZE:</strong> The detected entity text is replaced with a cryptographic ephemeral token (e.g. <code className="text-blue-400 font-mono">[a3x:{selectedPolicyForDetail.entityType}_001]</code>) before forwarding to the upstream LLM. The token is mapped in the Redis Token Vault and automatically restored to the original value in the response stream.
+                    <strong>TOKENIZE:</strong> The detected entity text is replaced with a cryptographic token (e.g. <code className="text-blue-400 font-mono">[PREFIX:{selectedPolicyForDetail.entityType}_001]</code>) before forwarding to the upstream LLM. In streaming responses, the token is restored to plaintext automatically.
                   </span>
                 )}
                 {selectedPolicyForDetail.action === 'REDACT' && (
                   <span>
-                    <strong>REDACT:</strong> The detected entity is permanently overwritten with <code className="text-yellow-400 font-mono">[REDACTED]</code>. The original value is not saved in the vault and cannot be restored.
+                    <strong>REDACT:</strong> The detected entity is permanently masked with <code className="text-yellow-400 font-mono">[REDACTED_{selectedPolicyForDetail.entityType}]</code>. The original value is not saved in the vault.
                   </span>
                 )}
                 {selectedPolicyForDetail.action === 'BLOCK' && (
                   <span>
-                    <strong>BLOCK:</strong> If this entity is detected anywhere in the request prompt, the proxy immediately terminates the request with HTTP 400 and does NOT contact the upstream provider.
+                    <strong>BLOCK:</strong> If this entity is detected in the prompt, the request is immediately terminated with HTTP 400 without contacting the AI upstream.
                   </span>
                 )}
                 {selectedPolicyForDetail.action === 'PASS' && (
@@ -340,21 +471,182 @@ export function PolicyPage() {
               </div>
             </div>
 
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-              <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Confidence Threshold</span>
-              <div className="flex items-center justify-between text-xs text-slate-200">
-                <span>Minimum NLP Detection Score:</span>
-                <span className="font-mono text-blue-400 font-semibold">{((selectedPolicyForDetail.minScore ?? 0.7) * 100).toFixed(0)}%</span>
+            {/* Interactive Single-Entity Playground */}
+            <div className="p-4 bg-slate-950 border border-indigo-900/50 rounded-xl space-y-3 shadow-lg shadow-indigo-950/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
+                  <Play className="w-3.5 h-3.5 text-indigo-400" /> Interactive Entity Playground
+                </span>
+                {SAMPLE_DATA[selectedPolicyForDetail.entityType] && (
+                  <button
+                    type="button"
+                    onClick={() => setDetailTestInput(SAMPLE_DATA[selectedPolicyForDetail.entityType] || '')}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Load Preset
+                  </button>
+                )}
               </div>
-              <p className="text-[11px] text-slate-500">
-                Any detection result with confidence score below this threshold will be treated as PASS.
-              </p>
+
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1">Input Sample Prompt</label>
+                <textarea
+                  rows={3}
+                  value={detailTestInput}
+                  onChange={(e) => setDetailTestInput(e.target.value)}
+                  placeholder="Enter sample prompt containing this entity..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Simulation Result Box */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Transformation Result:</span>
+                  <span className="font-mono">
+                    Matches: <strong className="text-indigo-300">{singleEntitySimulation.detectedEntities.length}</strong>
+                  </span>
+                </div>
+
+                {singleEntitySimulation.blocked ? (
+                  <div className="p-3 bg-red-950/60 border border-red-800/60 rounded-lg text-xs text-red-300 flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                      <strong>Request Terminated (400 Bad Request):</strong> Sensitive entity <code className="font-mono">{selectedPolicyForDetail.entityType}</code> triggered the BLOCK policy rule.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-emerald-300 break-all">
+                    {singleEntitySimulation.transformedText || detailTestInput}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
       </SlideOverDrawer>
 
-      {/* 2. RIGHT SLIDE-OVER DRAWER: Add Entity Rule */}
+      {/* 2. RIGHT SLIDE-OVER DRAWER: Global Policy Playground */}
+      <SlideOverDrawer
+        isOpen={showGlobalPlayground}
+        onClose={() => setShowGlobalPlayground(false)}
+        title="Privacy Policy Sandbox Playground"
+        subtitle="Simulate multi-entity detection, tokenization, masking, and blocking in real-time"
+        widthClass="max-w-2xl"
+        footer={
+          <button
+            onClick={() => setShowGlobalPlayground(false)}
+            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition"
+          >
+            Close Sandbox
+          </button>
+        }
+      >
+        <div className="space-y-5">
+          {/* Preset Prompts Buttons */}
+          <div className="space-y-2">
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Quick Test Templates</span>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setGlobalTestInput(
+                    'Invoice for Satoshi Nakamoto (satoshi@bitcoin.org). Payout 2.5 ETH to 0x71C8F794B32145429631994304244a1234567890. Phone: +1-555-0199.'
+                  )
+                }
+                className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition"
+              >
+                💼 Mixed Invoice & Crypto
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setGlobalTestInput(
+                    'Deploying server at 192.168.1.100. Admin password SuperSecret123! with API key sk-proj-1234567890abcdef1234567890abcdef.'
+                  )
+                }
+                className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition"
+              >
+                🔐 Dev Secrets & Credentials
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setGlobalTestInput(
+                    'Customer John Doe (john.doe@gmail.com) paid with Visa card 4532-1234-5678-9010 on cluster 10.0.0.1.'
+                  )
+                }
+                className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition"
+              >
+                💳 Payment & Personal PII
+              </button>
+            </div>
+          </div>
+
+          {/* Prompt Input */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Incoming Raw User Prompt (Client Side)</label>
+            <textarea
+              rows={4}
+              value={globalTestInput}
+              onChange={(e) => setGlobalTestInput(e.target.value)}
+              placeholder="Paste or type any prompt with PII/secrets to test all policy rules..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          {/* Detected Entities Tags */}
+          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-200">Detected Entities in Prompt:</span>
+              <span className="font-mono text-slate-400">Total: {globalSimulation.detectedEntities.length}</span>
+            </div>
+
+            {globalSimulation.detectedEntities.length > 0 ? (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {globalSimulation.detectedEntities.map((d, i) => (
+                  <span
+                    key={i}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border ${getActionBadgeColor(d.action)}`}
+                  >
+                    <span className="font-semibold">{d.entityType}</span>
+                    <span className="text-[10px] text-slate-400">({d.action})</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500 italic">No sensitive entities detected under current active policy rules.</div>
+            )}
+          </div>
+
+          {/* Sanitized LLM Payload Output */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-300 flex items-center justify-between">
+              <span>Sanitized Payload (What the Upstream LLM Receives)</span>
+              {globalSimulation.blocked && (
+                <span className="text-xs text-red-400 font-semibold font-mono">STATUS: BLOCKED</span>
+              )}
+            </label>
+
+            {globalSimulation.blocked ? (
+              <div className="p-4 bg-red-950/60 border border-red-800/80 rounded-xl text-xs text-red-200 space-y-1">
+                <div className="flex items-center gap-2 font-semibold text-red-300">
+                  <ShieldAlert className="w-4 h-4 text-red-400" /> Request Intercepted & Blocked
+                </div>
+                <p className="text-[11px] text-red-300/80 leading-relaxed">
+                  Contains blocked entities: <code className="font-mono font-bold text-red-200">{globalSimulation.blockedEntities.join(', ')}</code>. The proxy returned 400 Bad Request to protect credentials.
+                </p>
+              </div>
+            ) : (
+              <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-blue-300 leading-relaxed break-all">
+                {globalSimulation.transformedText || globalTestInput}
+              </div>
+            )}
+          </div>
+        </div>
+      </SlideOverDrawer>
+
+      {/* 3. RIGHT SLIDE-OVER DRAWER: Add Entity Rule */}
       <SlideOverDrawer
         isOpen={showAddDrawer}
         onClose={() => setShowAddDrawer(false)}
