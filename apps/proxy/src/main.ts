@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from './config/index.js';
 import { vault } from './vault/redis-vault.js';
+import { upstreamStore } from './config/upstream-store.js';
 import { healthRoutes } from './routes/health.js';
 import { adminRoutes } from './routes/admin.js';
 import { proxyRoutes, handleProxyRequest } from './routes/proxy.js';
@@ -64,6 +65,7 @@ async function startServer() {
 
   // Initialize Redis Token Vault connection
   await vault.init();
+  await upstreamStore.initFromStorage(vault);
 
   // Register Health and Readiness routes
   await server.register(healthRoutes);

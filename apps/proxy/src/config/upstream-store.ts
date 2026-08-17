@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { UpstreamProvider, UpstreamSettings, PrivacyMode } from '@ai-privacy-proxy/shared';
 import { config } from './index.js';
+import { vault } from '../vault/redis-vault.js';
 
 const DISALLOWED_HOSTNAMES = new Set([
   'localhost',
@@ -100,25 +101,43 @@ class UpstreamStore {
       if (fs.existsSync(PROVIDERS_FILE)) {
         const raw = fs.readFileSync(PROVIDERS_FILE, 'utf-8');
         const data = JSON.parse(raw);
-        if (data && Array.isArray(data.providers)) {
-          this.providers.clear();
-          for (const p of data.providers) {
-            this.providers.set(p.id, p);
-          }
-          if (data.defaultProviderId && this.providers.has(data.defaultProviderId)) {
-            this.defaultProviderId = data.defaultProviderId;
-          }
-          if (data.privacyMode) {
-            this.privacyMode = data.privacyMode;
-            config.PRIVACY_MODE = data.privacyMode;
-          }
-          if (data.vaultTtlSeconds) {
-            this.vaultTtlSeconds = data.vaultTtlSeconds;
-            config.VAULT_TTL_SECONDS = data.vaultTtlSeconds;
-          }
-        }
+        this.applySavedData(data);
       }
     } catch {}
+  }
+
+  private applySavedData(data: any) {
+    if (data && Array.isArray(data.providers)) {
+      this.providers.clear();
+      for (const p of data.providers) {
+        this.providers.set(p.id, p);
+      }
+      if (data.defaultProviderId && this.providers.has(data.defaultProviderId)) {
+        this.defaultProviderId = data.defaultProviderId;
+      }
+      if (data.privacyMode) {
+        this.privacyMode = data.privacyMode;
+        config.PRIVACY_MODE = data.privacyMode;
+      }
+      if (data.vaultTtlSeconds) {
+        this.vaultTtlSeconds = data.vaultTtlSeconds;
+        config.VAULT_TTL_SECONDS = data.vaultTtlSeconds;
+      }
+    }
+  }
+
+  async initFromStorage(vaultInstance?: any) {
+    if (vaultInstance) {
+      try {
+        const data = await vaultInstance.loadConfig('privacy:v1:system:providers');
+        if (data) {
+          this.applySavedData(data);
+          this.saveToDisk();
+          return;
+        }
+      } catch {}
+    }
+    this.loadFromDisk();
   }
 
   private saveToDisk() {
@@ -134,6 +153,21 @@ class UpstreamStore {
       };
       fs.writeFileSync(PROVIDERS_FILE, JSON.stringify(data, null, 2), 'utf-8');
     } catch {}
+  }
+
+  async persist(vaultInstance?: any) {
+    this.saveToDisk();
+    if (vaultInstance) {
+      try {
+        const data = {
+          defaultProviderId: this.defaultProviderId,
+          privacyMode: this.privacyMode,
+          vaultTtlSeconds: this.vaultTtlSeconds,
+          providers: Array.from(this.providers.values()),
+        };
+        await vaultInstance.saveConfig('privacy:v1:system:providers', data);
+      } catch {}
+    }
   }
 
   getSettings(): UpstreamSettings {
@@ -254,7 +288,7 @@ class UpstreamStore {
       config.UPSTREAM_BASE_URL = newSettings.upstreamBaseUrl;
     }
 
-    this.saveToDisk();
+    this.persist(vault);
   }
 
   addOrUpdateProvider(provider: UpstreamProvider): boolean {
@@ -270,7 +304,7 @@ class UpstreamStore {
       config.UPSTREAM_BASE_URL = provider.baseUrl;
     }
     this.providers.set(provider.id, { ...provider });
-    this.saveToDisk();
+    this.persist(vault);
     return true;
   }
 
@@ -286,7 +320,7 @@ class UpstreamStore {
         config.UPSTREAM_BASE_URL = first.baseUrl;
       }
     }
-    this.saveToDisk();
+    this.persist(vault);
     return true;
   }
 }

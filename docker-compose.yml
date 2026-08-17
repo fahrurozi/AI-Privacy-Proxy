@@ -12,7 +12,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-admin-secret-key-change-me}
     volumes:
-      - proxy-data:/app/apps/proxy/data
+      - ./data:/app/apps/proxy/data
     depends_on:
       presidio:
         condition: service_healthy
@@ -56,7 +56,6 @@ services:
       retries: 5
 
 volumes:
-  proxy-data:
   redis-data:
 
 networks:

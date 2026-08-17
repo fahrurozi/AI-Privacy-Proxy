@@ -216,6 +216,26 @@ export class RedisTokenVault implements TokenVault {
     }
     return true;
   }
+
+  async saveConfig(key: string, data: any): Promise<void> {
+    if (this.redis && this.isConnected) {
+      try {
+        await this.redis.set(key, JSON.stringify(data));
+      } catch {}
+    }
+  }
+
+  async loadConfig<T>(key: string): Promise<T | null> {
+    if (this.redis && this.isConnected) {
+      try {
+        const raw = await this.redis.get(key);
+        if (raw) {
+          return JSON.parse(raw) as T;
+        }
+      } catch {}
+    }
+    return null;
+  }
 }
 
 export const vault = new RedisTokenVault();
