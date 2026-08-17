@@ -42,15 +42,17 @@ async function startServer() {
       if (!origin) return cb(null, true);
 
       // Check explicit allowlist if configured
-      if (explicitAllowedOrigins.includes(origin)) return cb(null, true);
-
-      // Allow local development ports and same-host origins
-      if (/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin)) {
+      if (explicitAllowedOrigins.includes(origin) || explicitAllowedOrigins.includes('*')) {
         return cb(null, true);
       }
 
-      // If no explicit origins configured and in dev, allow origin
-      if (explicitAllowedOrigins.length === 0 && process.env['NODE_ENV'] !== 'production') {
+      // Default: allow all web origins unless specifically restricted via ALLOWED_ORIGINS
+      if (explicitAllowedOrigins.length === 0) {
+        return cb(null, true);
+      }
+
+      // Allow local development ports and same-host origins
+      if (/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin)) {
         return cb(null, true);
       }
 
