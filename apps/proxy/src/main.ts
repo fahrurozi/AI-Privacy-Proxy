@@ -69,11 +69,6 @@ async function startServer() {
       prefix: '/dashboard/',
     });
 
-    // SPA fallback route for dashboard
-    server.get('/dashboard/*', (_req, reply) => {
-      reply.sendFile('index.html');
-    });
-
     server.get('/dashboard', (_req, reply) => {
       reply.redirect('/dashboard/');
     });
@@ -94,6 +89,22 @@ async function startServer() {
 
   // Register catch-all proxy routes
   await server.register(proxyRoutes);
+
+  // SPA fallback for dashboard routes if not matched
+  if (dashboardPath) {
+    server.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith('/dashboard')) {
+        return reply.sendFile('index.html');
+      }
+      reply.status(404).send({
+        error: {
+          type: 'not_found',
+          code: 'route_not_found',
+          message: `Cannot ${req.method} ${req.url}`,
+        },
+      });
+    });
+  }
 
   // Graceful shutdown
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
