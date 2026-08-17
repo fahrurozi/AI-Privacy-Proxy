@@ -1,4 +1,6 @@
-import { EntityPolicy, PrivacyAction } from '@ai-privacy-proxy/shared';
+import fs from 'fs';
+import path from 'path';
+import { EntityPolicy } from '@ai-privacy-proxy/shared';
 
 export const DEFAULT_POLICIES: Record<string, EntityPolicy> = {
   PERSON: {
@@ -94,6 +96,9 @@ export const DEFAULT_POLICIES: Record<string, EntityPolicy> = {
   },
 };
 
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const POLICIES_FILE = path.join(DATA_DIR, 'policies.json');
+
 class PolicyRegistry {
   private policies: Map<string, EntityPolicy> = new Map();
 
@@ -101,6 +106,30 @@ class PolicyRegistry {
     for (const [key, val] of Object.entries(DEFAULT_POLICIES)) {
       this.policies.set(key.toUpperCase(), { ...val });
     }
+    this.loadFromDisk();
+  }
+
+  private loadFromDisk() {
+    try {
+      if (fs.existsSync(POLICIES_FILE)) {
+        const raw = fs.readFileSync(POLICIES_FILE, 'utf-8');
+        const list: EntityPolicy[] = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          for (const p of list) {
+            this.policies.set(p.entityType.toUpperCase(), p);
+          }
+        }
+      }
+    } catch {}
+  }
+
+  private saveToDisk() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(POLICIES_FILE, JSON.stringify(Array.from(this.policies.values()), null, 2), 'utf-8');
+    } catch {}
   }
 
   getPolicy(entityType: string): EntityPolicy {
@@ -127,10 +156,12 @@ class PolicyRegistry {
       enabled: policy.enabled ?? existing?.enabled ?? true,
       description: policy.description || existing?.description || 'Custom configured entity rule.',
     });
+    this.saveToDisk();
   }
 
   deletePolicy(entityType: string) {
     this.policies.delete(entityType.toUpperCase());
+    this.saveToDisk();
   }
 }
 

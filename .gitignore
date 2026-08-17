@@ -2,6 +2,8 @@
 # Planning docs (PRD, implementation plan, internal notes)
 # ============================================================
 planning/
+data/
+apps/proxy/data/
 
 # ============================================================
 # Dependencies

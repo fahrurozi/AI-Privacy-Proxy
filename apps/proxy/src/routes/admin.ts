@@ -112,9 +112,36 @@ export class AdminMetricsTracker {
   }
 }
 
+import fs from 'fs';
+import path from 'path';
+
 export const metricsTracker = new AdminMetricsTracker();
 const localCustomRecognizers: Map<string, CustomRecognizerConfig> = new Map();
 const loginAttemptMap = new Map<string, { count: number; resetAt: number }>();
+
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const RECOGNIZERS_FILE = path.join(DATA_DIR, 'recognizers.json');
+
+try {
+  if (fs.existsSync(RECOGNIZERS_FILE)) {
+    const raw = fs.readFileSync(RECOGNIZERS_FILE, 'utf-8');
+    const list = JSON.parse(raw);
+    if (Array.isArray(list)) {
+      for (const r of list) {
+        localCustomRecognizers.set(r.id, r);
+      }
+    }
+  }
+} catch {}
+
+function saveRecognizersToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(RECOGNIZERS_FILE, JSON.stringify(Array.from(localCustomRecognizers.values()), null, 2), 'utf-8');
+  } catch {}
+}
 
 function checkLoginRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -330,6 +357,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const item = req.body as CustomRecognizerConfig;
     const id = item.id || `custom_${Date.now()}`;
     localCustomRecognizers.set(id, { ...item, id });
+    saveRecognizersToDisk();
 
     try {
       await fetch(`${config.PRESIDIO_URL}/recognizers`, {
@@ -346,6 +374,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!verifyAdminAuth(req, reply)) return;
     const { id } = req.params as { id: string };
     localCustomRecognizers.delete(id);
+    saveRecognizersToDisk();
 
     try {
       await fetch(`${config.PRESIDIO_URL}/recognizers/${id}`, {

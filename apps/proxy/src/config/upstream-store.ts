@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { UpstreamProvider, UpstreamSettings, PrivacyMode } from '@ai-privacy-proxy/shared';
 import { config } from './index.js';
 
@@ -5,14 +7,11 @@ const DISALLOWED_HOSTNAMES = new Set([
   'localhost',
   '127.0.0.1',
   '0.0.0.0',
-  '169.254.169.254', // AWS/GCP/Azure Instance Metadata
+  '169.254.169.254',
   'instance-data',
   '[::1]',
 ]);
 
-/**
- * Validates upstream URL to protect against Server-Side Request Forgery (SSRF).
- */
 export function isSafeUpstreamUrl(rawUrl: string): boolean {
   try {
     const parsed = new URL(rawUrl);
@@ -22,18 +21,15 @@ export function isSafeUpstreamUrl(rawUrl: string): boolean {
 
     const hostname = parsed.hostname.toLowerCase();
 
-    // Allow localhost only if explicitly configured in local dev environment
     if (process.env['NODE_ENV'] === 'development' || !process.env['NODE_ENV']) {
-      if (hostname === '169.254.169.254') return false; // Never allow cloud metadata
+      if (hostname === '169.254.169.254') return false;
       return true;
     }
 
-    // In production, block all loopback, link-local, and metadata addresses
     if (DISALLOWED_HOSTNAMES.has(hostname)) {
       return false;
     }
 
-    // Block private IPv4 ranges (10.x.x.x, 172.16.x.x-172.31.x.x, 192.168.x.x, 169.254.x.x)
     if (
       hostname.startsWith('10.') ||
       hostname.startsWith('192.168.') ||
@@ -49,6 +45,9 @@ export function isSafeUpstreamUrl(rawUrl: string): boolean {
   }
 }
 
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const PROVIDERS_FILE = path.join(DATA_DIR, 'providers.json');
+
 class UpstreamStore {
   private providers: Map<string, UpstreamProvider> = new Map();
   private defaultProviderId = 'default';
@@ -57,6 +56,7 @@ class UpstreamStore {
 
   constructor() {
     this.initDefaultProviders();
+    this.loadFromDisk();
   }
 
   private initDefaultProviders() {
@@ -95,6 +95,47 @@ class UpstreamStore {
     });
   }
 
+  private loadFromDisk() {
+    try {
+      if (fs.existsSync(PROVIDERS_FILE)) {
+        const raw = fs.readFileSync(PROVIDERS_FILE, 'utf-8');
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data.providers)) {
+          this.providers.clear();
+          for (const p of data.providers) {
+            this.providers.set(p.id, p);
+          }
+          if (data.defaultProviderId && this.providers.has(data.defaultProviderId)) {
+            this.defaultProviderId = data.defaultProviderId;
+          }
+          if (data.privacyMode) {
+            this.privacyMode = data.privacyMode;
+            config.PRIVACY_MODE = data.privacyMode;
+          }
+          if (data.vaultTtlSeconds) {
+            this.vaultTtlSeconds = data.vaultTtlSeconds;
+            config.VAULT_TTL_SECONDS = data.vaultTtlSeconds;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  private saveToDisk() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      const data = {
+        defaultProviderId: this.defaultProviderId,
+        privacyMode: this.privacyMode,
+        vaultTtlSeconds: this.vaultTtlSeconds,
+        providers: Array.from(this.providers.values()),
+      };
+      fs.writeFileSync(PROVIDERS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    } catch {}
+  }
+
   getSettings(): UpstreamSettings {
     const defaultProv = this.providers.get(this.defaultProviderId) || Array.from(this.providers.values())[0];
     const currentBaseUrl = defaultProv ? defaultProv.baseUrl : config.UPSTREAM_BASE_URL;
@@ -113,11 +154,6 @@ class UpstreamStore {
     return this.providers.get(id.toLowerCase());
   }
 
-  /**
-   * Resolves the target upstream base URL and normalizes the target path.
-   * Securely maps requests ONLY to registered, validated upstream providers.
-   * (Mitigates SEC-001 SSRF by removing unauthenticated arbitrary raw URL headers)
-   */
   resolveTarget(
     headers: Record<string, string | string[] | undefined>,
     rawPath: string = '/',
@@ -125,7 +161,6 @@ class UpstreamStore {
     let cleanPath = rawPath.split('?')[0] || '/';
     let targetBaseUrl = '';
 
-    // 1. Check path prefix: /p/:providerId/... or /provider/:providerId/...
     const pathPrefixMatch = cleanPath.match(/^\/(?:p|provider)\/([a-zA-Z0-9_-]+)(\/.*)?$/i);
     if (pathPrefixMatch) {
       const providerId = pathPrefixMatch[1]?.toLowerCase();
@@ -135,7 +170,6 @@ class UpstreamStore {
       }
     }
 
-    // 2. Check provider ID header (e.g. x-upstream-provider: 9router or x-provider: 9router)
     if (!targetBaseUrl) {
       const providerHeader = headers['x-upstream-provider'] || headers['x-provider'];
       if (typeof providerHeader === 'string' && providerHeader.trim()) {
@@ -146,7 +180,6 @@ class UpstreamStore {
       }
     }
 
-    // 3. Fall back to configured default provider
     if (!targetBaseUrl) {
       const defaultProv = this.providers.get(this.defaultProviderId);
       targetBaseUrl = defaultProv?.baseUrl || config.UPSTREAM_BASE_URL || 'https://api.openai.com';
@@ -154,12 +187,10 @@ class UpstreamStore {
 
     targetBaseUrl = targetBaseUrl.replace(/\/+$/, '');
 
-    // Normalize duplicate /v1 if provider baseUrl already ends with /v1
     if (targetBaseUrl.endsWith('/v1') && cleanPath.startsWith('/v1/')) {
       cleanPath = cleanPath.slice(3);
     }
 
-    // Preserve query parameters if any
     const queryIndex = rawPath.indexOf('?');
     if (queryIndex !== -1) {
       cleanPath += rawPath.slice(queryIndex);
@@ -222,6 +253,8 @@ class UpstreamStore {
       }
       config.UPSTREAM_BASE_URL = newSettings.upstreamBaseUrl;
     }
+
+    this.saveToDisk();
   }
 
   addOrUpdateProvider(provider: UpstreamProvider): boolean {
@@ -237,6 +270,7 @@ class UpstreamStore {
       config.UPSTREAM_BASE_URL = provider.baseUrl;
     }
     this.providers.set(provider.id, { ...provider });
+    this.saveToDisk();
     return true;
   }
 
@@ -252,6 +286,7 @@ class UpstreamStore {
         config.UPSTREAM_BASE_URL = first.baseUrl;
       }
     }
+    this.saveToDisk();
     return true;
   }
 }
