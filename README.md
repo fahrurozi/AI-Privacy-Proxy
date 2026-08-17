@@ -149,6 +149,30 @@ The streaming/non-streaming detokenizer swaps tokens back to their original valu
 
 ---
 
+## 🛡️ Supported Privacy Actions & Policies
+
+Every detected entity type can be individually configured with one of the following 5 granular actions:
+
+| Action | Behavior | Example Input | What AI Receives | What Client Receives | Best Used For |
+|---|---|---|---|---|---|
+| **`TOKENIZE`** | Substitutes PII with a cryptographic surrogate token and dynamically detokenizes it back in the AI response. | `Alice Walker` | `[8b4b7a8b:PERSON_001]` | `Alice Walker` (Restored) | Names, Emails, Crypto Wallets, IP Addresses |
+| **`MASK`** | Replaces sensitive characters with asterisks `*` while keeping contextual structure. | `satoshi@bitcoin.org` | `s***i@bitcoin.org` | `s***i@bitcoin.org` | Contact info where partial format matters |
+| **`REDACT`** | Permanently strips the sensitive value and replaces it with `[REDACTED]`. Irreversible. | `4532-1234-5678-9010` | `[REDACTED]` | `[REDACTED]` | Credit Cards, Social Security Numbers (SSN), Passports |
+| **`BLOCK`** | Aborts the request immediately at the proxy with HTTP 400. Upstream AI is never contacted. | `xprv9s21ZrQH143...` | *(Request Dropped)* | `HTTP 400: Request Blocked` | Private Keys, Seed Phrases, API Secrets, Passwords |
+| **`PASS`** | Passes the text as-is without any modification or sanitization. | `Open Source Project` | `Open Source Project` | `Open Source Project` | Non-sensitive or whitelisted entities |
+
+### 📋 Out-of-the-Box Supported Entity Recognizers
+
+The proxy includes pre-configured Presidio NLP + Regex + Checksum recognizers:
+
+* **Personal & Identity**: `PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER`, `US_SSN`, `US_PASSPORT`
+* **Financial & Payment**: `CREDIT_CARD` (Luhn checksum algorithm validation), `IBAN_CODE`
+* **Web3 & Crypto Assets**: `ETHEREUM_ADDRESS` (EVM 40-hex), `SOLANA_ADDRESS` (Base58 32–44 chars)
+* **Infrastructure & Secrets**: `IP_ADDRESS` (IPv4 & IPv6), `API_KEY` (OpenAI, AWS, GitHub PATs, JWT), `PRIVATE_KEY` (64-hex / PEM), `SEED_PHRASE` (BIP-39 mnemonic 12/24 words), `PASSWORD`
+* **Custom Pattern Recognizers**: Add custom regexes & confidence scores directly from the Dashboard UI (e.g., custom employee IDs, internal project codes, API tokens).
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Clone & Setup Environment
