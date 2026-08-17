@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { upstreamStore } from '../../src/config/upstream-store.js';
+import { upstreamStore, isSafeUpstreamUrl } from '../../src/config/upstream-store.js';
 
 describe('UpstreamStore & Multi-Provider Routing', () => {
   it('should resolve default provider base URL when no special headers are sent', () => {
@@ -30,11 +30,11 @@ describe('UpstreamStore & Multi-Provider Routing', () => {
     expect(targetOpenAI).toBe('https://api.openai.com');
   });
 
-  it('should allow direct override via X-Upstream-Base-Url header', () => {
-    const targetCustom = upstreamStore.resolveTargetBaseUrl({
-      'x-upstream-base-url': 'https://my-custom-router.internal.net/v1',
-    });
-    expect(targetCustom).toBe('https://my-custom-router.internal.net/v1');
+  it('should block unsafe cloud metadata addresses in isSafeUpstreamUrl (SSRF mitigation)', () => {
+    expect(isSafeUpstreamUrl('http://169.254.169.254/latest/meta-data')).toBe(false);
+    expect(isSafeUpstreamUrl('ftp://example.com/api')).toBe(false);
+    expect(isSafeUpstreamUrl('https://api.openai.com/v1')).toBe(true);
+    expect(isSafeUpstreamUrl('http://9router.mfahrurozi.my.id/api/v1')).toBe(true);
   });
 
   it('should dynamically switch default provider via updateSettings', () => {

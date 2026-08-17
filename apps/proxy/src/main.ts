@@ -31,9 +31,31 @@ async function startServer() {
     bodyLimit: 32 * 1024 * 1024, // 32 MB body limit
   });
 
-  // Enable CORS
+  // Enable CORS with secure origin validation (SEC-004)
+  const explicitAllowedOrigins = config.ALLOWED_ORIGINS
+    ? config.ALLOWED_ORIGINS.split(',').map((s) => s.trim())
+    : [];
+
   await server.register(cors, {
-    origin: true,
+    origin: (origin, cb) => {
+      // Allow requests without Origin (curl, SDKs, server-to-server, CLI)
+      if (!origin) return cb(null, true);
+
+      // Check explicit allowlist if configured
+      if (explicitAllowedOrigins.includes(origin)) return cb(null, true);
+
+      // Allow local development ports and same-host origins
+      if (/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin)) {
+        return cb(null, true);
+      }
+
+      // If no explicit origins configured and in dev, allow origin
+      if (explicitAllowedOrigins.length === 0 && process.env['NODE_ENV'] !== 'production') {
+        return cb(null, true);
+      }
+
+      return cb(new Error('Cross-Origin Request Blocked by Privacy Proxy Security Policy'), false);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['*'],
   });

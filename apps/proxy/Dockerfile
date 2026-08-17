@@ -32,6 +32,9 @@ COPY --from=proxy-builder /app/apps/proxy/dist ./apps/proxy/dist
 COPY --from=dashboard-builder /app/apps/dashboard/dist ./apps/dashboard/dist
 
 WORKDIR /app/apps/proxy
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 8080
 
 CMD ["node", "dist/main.js"]

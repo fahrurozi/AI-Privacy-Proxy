@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomBytes } from 'crypto';
 import { PrivacyMode } from '@ai-privacy-proxy/shared';
 
 const ConfigSchema = z.object({
@@ -11,6 +12,7 @@ const ConfigSchema = z.object({
   VAULT_TTL_SECONDS: z.coerce.number().default(3600),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   ADMIN_API_KEY: z.string().default('admin-secret-key-change-me'),
+  ALLOWED_ORIGINS: z.string().default(''),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -33,7 +35,15 @@ try {
     VAULT_TTL_SECONDS: process.env['VAULT_TTL_SECONDS'] || 3600,
     LOG_LEVEL: process.env['LOG_LEVEL'] || 'info',
     ADMIN_API_KEY: process.env['ADMIN_API_KEY'] || 'admin-secret-key-change-me',
+    ALLOWED_ORIGINS: process.env['ALLOWED_ORIGINS'] || '',
   });
+}
+
+// Security Hardening (SEC-002): Warn if default secret key is active in non-test mode
+if (currentConfig.ADMIN_API_KEY === 'admin-secret-key-change-me' && process.env['NODE_ENV'] === 'production') {
+  const generatedKey = `sk_admin_${randomBytes(24).toString('hex')}`;
+  console.warn(`\n⚠️  [SECURITY WARNING] Using default ADMIN_API_KEY in production! Auto-generating secure key: ${generatedKey}\n`);
+  currentConfig.ADMIN_API_KEY = generatedKey;
 }
 
 export const config = currentConfig;

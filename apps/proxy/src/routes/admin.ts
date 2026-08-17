@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { timingSafeEqual, createHash, randomBytes } from 'crypto';
 import {
   MetricsSummary,
   AuditEvent,
@@ -9,7 +10,7 @@ import {
 } from '@ai-privacy-proxy/shared';
 import { config } from '../config/index.js';
 import { policyRegistry } from '../config/policy.js';
-import { upstreamStore } from '../config/upstream-store.js';
+import { upstreamStore, isSafeUpstreamUrl } from '../config/upstream-store.js';
 import { vault } from '../vault/redis-vault.js';
 import { checkPresidioHealth, analyzeText } from '../presidio/client.js';
 import { maskValue } from '../privacy/tokenizer.js';
@@ -116,15 +117,44 @@ export class AdminMetricsTracker {
 export const metricsTracker = new AdminMetricsTracker();
 const localCustomRecognizers: Map<string, CustomRecognizerConfig> = new Map();
 
+// In-memory rate limiting map for login attempts (SEC-005 mitigation)
+const loginAttemptMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkLoginRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = loginAttemptMap.get(ip);
+  if (!record || record.resetAt <= now) {
+    loginAttemptMap.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (record.count >= 10) {
+    return false; // Rate limit exceeded (10 attempts per minute per IP)
+  }
+  record.count += 1;
+  return true;
+}
+
+/**
+ * Constant-time string comparison to prevent timing attacks (SEC-003 mitigation)
+ */
+export function constantTimeEquals(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  const hashA = createHash('sha256').update(String(a)).digest();
+  const hashB = createHash('sha256').update(String(b)).digest();
+  return timingSafeEqual(hashA, hashB);
+}
+
 function verifyAdminAuth(req: FastifyRequest, reply: FastifyReply): boolean {
   const authHeader = req.headers['authorization'];
   let candidateKey = req.headers['x-admin-key'];
 
-  if (!candidateKey && authHeader?.startsWith('Bearer ')) {
+  if (!candidateKey && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
     candidateKey = authHeader.slice(7).trim();
   }
 
-  if (!candidateKey || candidateKey !== config.ADMIN_API_KEY) {
+  const keyString = Array.isArray(candidateKey) ? candidateKey[0] : candidateKey;
+
+  if (!keyString || !constantTimeEquals(keyString, config.ADMIN_API_KEY)) {
     reply.status(401).send({ error: 'unauthorized', message: 'Invalid or missing Admin Authentication Key' });
     return false;
   }
@@ -134,10 +164,19 @@ function verifyAdminAuth(req: FastifyRequest, reply: FastifyReply): boolean {
 export async function adminRoutes(fastify: FastifyInstance) {
   // Authentication & Login Routes
   fastify.post('/admin/auth/login', async (req, reply) => {
+    const clientIp = req.ip || '127.0.0.1';
+    if (!checkLoginRateLimit(clientIp)) {
+      return reply.status(429).send({
+        success: false,
+        error: 'rate_limited',
+        message: 'Too many authentication attempts. Please wait 1 minute before trying again.',
+      });
+    }
+
     const body = req.body as { key?: string; password?: string; adminKey?: string };
     const submittedKey = body?.key || body?.adminKey || body?.password;
 
-    if (!submittedKey || submittedKey !== config.ADMIN_API_KEY) {
+    if (!submittedKey || !constantTimeEquals(submittedKey, config.ADMIN_API_KEY)) {
       return reply.status(401).send({
         success: false,
         error: 'invalid_credentials',
@@ -179,7 +218,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
     });
 
     const interval = setInterval(async () => {
@@ -358,6 +396,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
       providers?: UpstreamProvider[];
     };
 
+    if (body.upstreamBaseUrl && !isSafeUpstreamUrl(body.upstreamBaseUrl)) {
+      return reply.status(400).send({ error: 'invalid_url', message: 'Target upstream URL failed security validation' });
+    }
+
     upstreamStore.updateSettings(body);
     return reply.send({
       status: 'ok',
@@ -372,7 +414,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!provider.id || !provider.baseUrl || !provider.name) {
       return reply.status(400).send({ error: 'invalid_provider', message: 'Missing required provider fields' });
     }
-    upstreamStore.addOrUpdateProvider(provider);
+
+    if (!isSafeUpstreamUrl(provider.baseUrl)) {
+      return reply.status(400).send({
+        error: 'unsafe_upstream_url',
+        message: 'The specified base URL is invalid or targets a disallowed internal address (SSRF protection).',
+      });
+    }
+
+    const added = upstreamStore.addOrUpdateProvider(provider);
+    if (!added) {
+      return reply.status(400).send({ error: 'unsafe_upstream_url', message: 'The specified URL failed safety validation.' });
+    }
+
     return reply.send({ status: 'ok', provider, settings: upstreamStore.getSettings() });
   });
 

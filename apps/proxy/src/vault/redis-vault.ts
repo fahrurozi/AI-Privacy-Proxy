@@ -17,7 +17,7 @@ export function hashNormalized(entityType: string, value: string): string {
 }
 
 export function generateSessionPrefix(sessionId: string): string {
-  return createHash('md5').update(sessionId).digest('hex').slice(0, 4);
+  return createHash('sha256').update(sessionId).digest('hex').slice(0, 8);
 }
 
 export class RedisTokenVault implements TokenVault {

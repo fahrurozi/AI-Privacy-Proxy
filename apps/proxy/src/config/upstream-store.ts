@@ -1,6 +1,54 @@
 import { UpstreamProvider, UpstreamSettings, PrivacyMode } from '@ai-privacy-proxy/shared';
 import { config } from './index.js';
 
+const DISALLOWED_HOSTNAMES = new Set([
+  'localhost',
+  '127.0.0.1',
+  '0.0.0.0',
+  '169.254.169.254', // AWS/GCP/Azure Instance Metadata
+  'instance-data',
+  '[::1]',
+]);
+
+/**
+ * Validates upstream URL to protect against Server-Side Request Forgery (SSRF).
+ */
+export function isSafeUpstreamUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Allow localhost only if explicitly configured in local dev environment
+    if (process.env['NODE_ENV'] === 'development' || !process.env['NODE_ENV']) {
+      if (hostname === '169.254.169.254') return false; // Never allow cloud metadata
+      return true;
+    }
+
+    // In production, block all loopback, link-local, and metadata addresses
+    if (DISALLOWED_HOSTNAMES.has(hostname)) {
+      return false;
+    }
+
+    // Block private IPv4 ranges (10.x.x.x, 172.16.x.x-172.31.x.x, 192.168.x.x, 169.254.x.x)
+    if (
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('169.254.') ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 class UpstreamStore {
   private providers: Map<string, UpstreamProvider> = new Map();
   private defaultProviderId = 'default';
@@ -67,11 +115,8 @@ class UpstreamStore {
 
   /**
    * Resolves the target upstream base URL and normalizes the target path.
-   * Supports:
-   * 1. Path-based provider routing: /p/:providerId/v1/... or /provider/:providerId/...
-   * 2. Header-based provider routing: x-upstream-provider / x-provider
-   * 3. Explicit base URL header override: x-upstream-base-url
-   * 4. Default provider fallback
+   * Securely maps requests ONLY to registered, validated upstream providers.
+   * (Mitigates SEC-001 SSRF by removing unauthenticated arbitrary raw URL headers)
    */
   resolveTarget(
     headers: Record<string, string | string[] | undefined>,
@@ -90,15 +135,7 @@ class UpstreamStore {
       }
     }
 
-    // 2. If not matched by path, check explicit base URL header override
-    if (!targetBaseUrl) {
-      const explicitUrlHeader = headers['x-upstream-base-url'];
-      if (typeof explicitUrlHeader === 'string' && explicitUrlHeader.trim()) {
-        targetBaseUrl = explicitUrlHeader.trim();
-      }
-    }
-
-    // 3. Check provider ID header (e.g. x-upstream-provider: 9router or x-provider: 9router)
+    // 2. Check provider ID header (e.g. x-upstream-provider: 9router or x-provider: 9router)
     if (!targetBaseUrl) {
       const providerHeader = headers['x-upstream-provider'] || headers['x-provider'];
       if (typeof providerHeader === 'string' && providerHeader.trim()) {
@@ -109,7 +146,7 @@ class UpstreamStore {
       }
     }
 
-    // 4. Fall back to current default provider or config
+    // 3. Fall back to configured default provider
     if (!targetBaseUrl) {
       const defaultProv = this.providers.get(this.defaultProviderId);
       targetBaseUrl = defaultProv?.baseUrl || config.UPSTREAM_BASE_URL || 'https://api.openai.com';
@@ -163,7 +200,9 @@ class UpstreamStore {
     if (newSettings.providers && Array.isArray(newSettings.providers)) {
       this.providers.clear();
       for (const p of newSettings.providers) {
-        this.providers.set(p.id, { ...p, isDefault: p.id === (newSettings.defaultProviderId || this.defaultProviderId) });
+        if (isSafeUpstreamUrl(p.baseUrl)) {
+          this.providers.set(p.id, { ...p, isDefault: p.id === (newSettings.defaultProviderId || this.defaultProviderId) });
+        }
       }
     }
 
@@ -176,7 +215,7 @@ class UpstreamStore {
       if (active) {
         config.UPSTREAM_BASE_URL = active.baseUrl;
       }
-    } else if (newSettings.upstreamBaseUrl) {
+    } else if (newSettings.upstreamBaseUrl && isSafeUpstreamUrl(newSettings.upstreamBaseUrl)) {
       const defaultProv = this.providers.get(this.defaultProviderId);
       if (defaultProv) {
         defaultProv.baseUrl = newSettings.upstreamBaseUrl;
@@ -185,7 +224,11 @@ class UpstreamStore {
     }
   }
 
-  addOrUpdateProvider(provider: UpstreamProvider) {
+  addOrUpdateProvider(provider: UpstreamProvider): boolean {
+    if (!isSafeUpstreamUrl(provider.baseUrl)) {
+      return false;
+    }
+
     if (provider.isDefault) {
       this.defaultProviderId = provider.id;
       for (const p of this.providers.values()) {
@@ -194,6 +237,7 @@ class UpstreamStore {
       config.UPSTREAM_BASE_URL = provider.baseUrl;
     }
     this.providers.set(provider.id, { ...provider });
+    return true;
   }
 
   deleteProvider(id: string): boolean {
