@@ -1,0 +1,21 @@
+{
+  "name": "ai-privacy-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted privacy gateway between AI clients and AI providers",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter proxy --filter dashboard dev",
+    "build": "pnpm --filter dashboard build && pnpm --filter proxy build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
