@@ -120,6 +120,14 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       clientIp: req.ip,
     });
 
+    if (contentType.includes('application/json')) {
+      reply.header('content-type', 'application/json; charset=utf-8');
+      try {
+        const parsed = typeof detokenizedBody === 'string' ? JSON.parse(detokenizedBody) : detokenizedBody;
+        return reply.status(upstreamStatus).send(parsed);
+      } catch {}
+    }
+
     return reply.status(upstreamStatus).send(detokenizedBody);
   } catch (err: any) {
     metricsTracker.recordRequest({

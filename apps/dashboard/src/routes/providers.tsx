@@ -189,7 +189,19 @@ export function ProvidersPage() {
         throw new Error(`Router returned HTTP ${response.status}`);
       }
 
-      const data = await response.json().catch(() => ({}));
+      const rawText = await response.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(rawText);
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch {}
+        }
+      } catch {
+        data = {};
+      }
+
       let modelsList: string[] = [];
 
       if (Array.isArray(data?.data)) {
