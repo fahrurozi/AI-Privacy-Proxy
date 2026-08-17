@@ -201,7 +201,7 @@ export function ProvidersPage() {
         return;
       }
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       let modelsList: string[] = [];
 
       if (Array.isArray(data?.data)) {
@@ -222,9 +222,14 @@ export function ProvidersPage() {
         latencyMs: latency,
       });
     } catch (err: any) {
+      // Fallback model population on any network/format glitch so user can still test chatting
+      const fallbackList = ['gpt-4o', 'gpt-4o-mini', 'claude-3-5-sonnet-20241022', 'deepseek-chat'];
+      setAvailableModels(fallbackList);
+      setSelectedModel(fallbackList[0]!);
+
       setConnectionStatus({
         connected: false,
-        message: err.message || 'Connection test failed',
+        message: `${err.message || 'Connection test failed'} (You can still try sending a prompt below)`,
       });
     } finally {
       setTestingConnection(false);
