@@ -186,50 +186,45 @@ export function ProvidersPage() {
         if (response.status === 401 || response.status === 403) {
           throw new Error(`Authentication Failed (HTTP ${response.status}): Invalid API Key.`);
         }
-        const defaultModels =
-          selectedProviderForPlayground.id === 'anthropic'
-            ? ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229']
-            : ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo', 'deepseek-chat'];
-
-        setAvailableModels(defaultModels);
-        setSelectedModel(defaultModels[0]!);
-        setConnectionStatus({
-          connected: true,
-          message: `Connected successfully! (Endpoint verified in ${latency}ms)`,
-          latencyMs: latency,
-        });
-        return;
+        throw new Error(`Router returned HTTP ${response.status}`);
       }
 
       const data = await response.json().catch(() => ({}));
       let modelsList: string[] = [];
 
       if (Array.isArray(data?.data)) {
-        modelsList = data.data.map((m: any) => m.id || m.name).filter(Boolean);
+        modelsList = data.data.map((m: any) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean);
       } else if (Array.isArray(data?.models)) {
-        modelsList = data.models.map((m: any) => m.id || m.name).filter(Boolean);
+        modelsList = data.models.map((m: any) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean);
+      } else if (Array.isArray(data)) {
+        modelsList = data.map((m: any) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean);
       }
 
-      if (modelsList.length === 0) {
-        modelsList = ['gpt-4o', 'gpt-4o-mini', 'claude-3-5-sonnet-20241022', 'deepseek-chat'];
-      }
+      modelsList = Array.from(new Set(modelsList)).sort();
 
-      setAvailableModels(modelsList);
-      setSelectedModel(modelsList[0] || 'gpt-4o');
-      setConnectionStatus({
-        connected: true,
-        message: `Connected successfully! Discovered ${modelsList.length} models (${latency}ms).`,
-        latencyMs: latency,
-      });
+      if (modelsList.length > 0) {
+        setAvailableModels(modelsList);
+        setSelectedModel(modelsList[0]!);
+        setConnectionStatus({
+          connected: true,
+          message: `Connected successfully! Discovered ${modelsList.length} models on this router (${latency}ms).`,
+          latencyMs: latency,
+        });
+      } else {
+        setAvailableModels([]);
+        setSelectedModel('custom');
+        setConnectionStatus({
+          connected: true,
+          message: `Connected (${latency}ms), but no model list was returned by this router. Enter custom model ID below.`,
+          latencyMs: latency,
+        });
+      }
     } catch (err: any) {
-      // Fallback model population on any network/format glitch so user can still test chatting
-      const fallbackList = ['gpt-4o', 'gpt-4o-mini', 'claude-3-5-sonnet-20241022', 'deepseek-chat'];
-      setAvailableModels(fallbackList);
-      setSelectedModel(fallbackList[0]!);
-
+      setAvailableModels([]);
+      setSelectedModel('custom');
       setConnectionStatus({
         connected: false,
-        message: `${err.message || 'Connection test failed'} (You can still try sending a prompt below)`,
+        message: `${err.message || 'Connection test failed'}. You can still enter a model ID and test below.`,
       });
     } finally {
       setTestingConnection(false);
@@ -657,52 +652,62 @@ export function ProvidersPage() {
               )}
             </div>
 
-            {/* Step 2: Model Selection (Enabled after connection or manual) */}
+            {/* Step 2: Model Selection (Populated dynamically from router) */}
             <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-semibold text-slate-200">
                   2. Select AI Model
                 </label>
-                {availableModels.length > 0 && (
+                {availableModels.length > 0 ? (
                   <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/50">
-                    {availableModels.length} models available
+                    {availableModels.length} models from router
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400">
+                    Test connection above to load models
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
-                >
-                  {availableModels.length > 0 ? (
-                    availableModels.map((m) => (
+              {availableModels.length > 0 ? (
+                <div className="space-y-2">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                  >
+                    {availableModels.map((m) => (
                       <option key={m} value={m}>
                         {m}
                       </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="gpt-4o">gpt-4o (Default)</option>
-                      <option value="gpt-4o-mini">gpt-4o-mini</option>
-                      <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
-                      <option value="deepseek-chat">deepseek-chat</option>
-                    </>
-                  )}
-                  <option value="custom">-- Custom Model ID --</option>
-                </select>
+                    ))}
+                    <option value="custom">-- Enter Custom Model ID --</option>
+                  </select>
 
-                {selectedModel === 'custom' && (
+                  {selectedModel === 'custom' && (
+                    <input
+                      type="text"
+                      placeholder="e.g. meta-llama/llama-3-70b"
+                      value={customModelInput}
+                      onChange={(e) => setCustomModelInput(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1.5">
                   <input
                     type="text"
-                    placeholder="Enter custom model (e.g. meta-llama/llama-3-70b)"
+                    placeholder="Enter model ID (e.g. gpt-4o, claude-3-5-sonnet, deepseek-chat)"
                     value={customModelInput}
                     onChange={(e) => setCustomModelInput(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                   />
-                )}
-              </div>
+                  <p className="text-[10px] text-slate-500">
+                    Tip: Click <strong>Test Connection</strong> above to automatically fetch available models from this router.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Step 3: Interactive Prompt Input */}

@@ -58,7 +58,7 @@ export function detectProtocol(
 export async function processIncomingRequest(
   url: string,
   headers: Record<string, string | string[] | undefined>,
-  rawBody: string | Buffer | null,
+  rawBody: any,
 ): Promise<ProcessedRequest> {
   if (!rawBody) {
     return {
@@ -72,12 +72,33 @@ export async function processIncomingRequest(
     };
   }
 
-  const bodyStr = typeof rawBody === 'string' ? rawBody : rawBody.toString('utf-8');
-  let parsedBody: any;
-  try {
-    parsedBody = JSON.parse(bodyStr);
-  } catch {
-    // Non-JSON payload, forward as-is
+  let parsedBody: any = null;
+  let bodyStr = '';
+
+  if (Buffer.isBuffer(rawBody)) {
+    bodyStr = rawBody.toString('utf-8');
+    try {
+      parsedBody = JSON.parse(bodyStr);
+    } catch {
+      parsedBody = null;
+    }
+  } else if (typeof rawBody === 'string') {
+    bodyStr = rawBody;
+    try {
+      parsedBody = JSON.parse(bodyStr);
+    } catch {
+      parsedBody = null;
+    }
+  } else if (typeof rawBody === 'object' && rawBody !== null) {
+    parsedBody = rawBody;
+    try {
+      bodyStr = JSON.stringify(rawBody);
+    } catch {
+      bodyStr = '';
+    }
+  }
+
+  if (!parsedBody) {
     return {
       sanitizedBody: bodyStr,
       sessionId: resolveSessionId(headers, null),
@@ -92,7 +113,6 @@ export async function processIncomingRequest(
   const sessionId = resolveSessionId(headers, parsedBody);
   const adapter = detectProtocol(url, headers, parsedBody);
 
-  // If in Bypass mode, skip privacy analysis entirely
   if (upstreamStore.getPrivacyMode() === 'bypass') {
     return {
       sanitizedBody: bodyStr,
