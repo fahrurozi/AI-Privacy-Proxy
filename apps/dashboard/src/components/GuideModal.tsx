@@ -15,6 +15,7 @@ import {
   Zap,
   CheckCircle2,
   BookOpen,
+  Sliders,
 } from 'lucide-react';
 
 interface GuideStep {
@@ -88,7 +89,7 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               <span className="font-semibold text-slate-200">1. Prompt Asli dari Klien / IDE (Mengandung Banyak PII):</span>
               <span className="text-blue-400 font-mono text-[10px]">Client Input</span>
             </div>
-            <div className="p-3 bg-slate-900 border border-slate-850 rounded-lg text-slate-200 font-mono text-[11px] leading-relaxed">
+            <div className="p-3 bg-slate-900 border border-slate-855 rounded-lg text-slate-200 font-mono text-[11px] leading-relaxed">
               "Buatkan invoice untuk <span className="text-emerald-400 bg-emerald-950/60 px-1 py-0.5 rounded">Alice Walker</span> (<span className="text-blue-400 bg-blue-950/60 px-1 py-0.5 rounded">alice@techcorp.com</span>) dan partnernya <span className="text-teal-400 bg-teal-950/60 px-1 py-0.5 rounded">Bob Smith</span> (<span className="text-indigo-400 bg-indigo-950/60 px-1 py-0.5 rounded">bob@partner.org</span>). Transfer 2.5 ETH ke <span className="text-purple-400 bg-purple-950/60 px-1 py-0.5 rounded">0x71C8F794B32145429631994304244a1234567890</span> lalu kirim salinan lagi ke <span className="text-blue-400 bg-blue-950/60 px-1 py-0.5 rounded">alice@techcorp.com</span>."
             </div>
           </div>
@@ -132,7 +133,7 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               <span className="font-semibold text-purple-300">3. Yang Diterima & Dijawab oleh AI Upstream (Cloud):</span>
               <span className="text-purple-400 font-mono text-[10px]">Cloud AI Response</span>
             </div>
-            <div className="p-3 bg-slate-900 border border-slate-850 rounded-lg text-purple-200 font-mono text-[11px] leading-relaxed">
+            <div className="p-3 bg-slate-900 border border-slate-855 rounded-lg text-purple-200 font-mono text-[11px] leading-relaxed">
               "Invoice draf telah dibuat untuk <span className="text-emerald-400">[PREFIX:PERSON_001]</span> dan <span className="text-teal-400">[PREFIX:PERSON_002]</span>. Konfirmasi pembayaran dikirim ke <span className="text-blue-400">[PREFIX:EMAIL_001]</span> dan <span className="text-indigo-400">[PREFIX:EMAIL_002]</span>, dengan instruksi transfer 2.5 ETH ke dompet <span className="text-purple-400">[PREFIX:ETHEREUM_ADDRESS_001]</span>."
             </div>
           </div>
@@ -143,7 +144,7 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               <span className="font-semibold text-emerald-300">4. Yang Diterima Klien Pengguna (Data Asli Dikembalikan Sempurna):</span>
               <span className="text-emerald-400 font-mono text-[10px]">Stream Detokenized</span>
             </div>
-            <div className="p-3 bg-slate-900 border border-slate-850 rounded-lg text-emerald-100 font-mono text-[11px] leading-relaxed">
+            <div className="p-3 bg-slate-900 border border-slate-855 rounded-lg text-emerald-100 font-mono text-[11px] leading-relaxed">
               "Invoice draf telah dibuat untuk <strong className="text-emerald-300">Alice Walker</strong> dan <strong className="text-teal-300">Bob Smith</strong>. Konfirmasi pembayaran dikirim ke <strong className="text-blue-300">alice@techcorp.com</strong> dan <strong className="text-indigo-300">bob@partner.org</strong>, dengan instruksi transfer 2.5 ETH ke dompet <strong className="text-purple-300">0x71C8F794B32145429631994304244a1234567890</strong>."
             </div>
           </div>
@@ -168,7 +169,7 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
                 TOKENIZE
               </span>
-              <span className="font-semibold text-slate-200">Reversible Ephemeral Token</span>
+              <span className="font-semibold text-slate-200">Reversible Ephemeral Token (2 Arah)</span>
             </div>
             <p className="text-slate-400 text-[11px] leading-relaxed">
               Mengganti teks dengan token <code>[PREFIX:ENTITY_001]</code>. Disimpan di Redis Vault dan <strong>otomatis dikembalikan ke teks asli</strong> saat AI menjawab secara streaming. Cocok untuk Nama, Email, Alamat, No Telepon.
@@ -226,7 +227,74 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       ),
     },
     {
-      title: '4. Privacy Operating Modes (Strict / Balanced / Bypass)',
+      title: '4. Confidence Threshold (Tingkat Keyakinan AI)',
+      badge: 'Detection Sensitivity',
+      badgeColor: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
+      subtitle: 'Mengatur seberapa yakin model AI harus sebelum melakukan aksi sensor/tokenisasi',
+      content: (
+        <div className="space-y-4 text-xs text-slate-300 leading-relaxed">
+          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <h4 className="font-semibold text-slate-100 flex items-center gap-2">
+              <Sliders className="w-4 h-4 text-teal-400" /> Apa itu Confidence Threshold (0% - 100%)?
+            </h4>
+            <p className="text-slate-400 leading-relaxed">
+              Saat model NLP (Presidio / spaCy) membaca teks prompt, ia menghitung <strong>skor keyakinan probabilitas</strong> (misalnya <code>0.85</code> atau 85%) bahwa suatu kata benar-benar merupakan jenis data pribadi tersebut.
+            </p>
+          </div>
+
+          {/* Real World Example Card */}
+          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 font-mono text-[11px]">
+            <div className="text-[11px] text-slate-400 font-sans font-semibold uppercase tracking-wider">
+              Contoh Kasus Mengapa Skor Probabilitas Berbeda:
+            </div>
+
+            <div className="p-2.5 bg-slate-900 border border-slate-855 rounded-lg space-y-1">
+              <div className="text-emerald-400 font-semibold font-sans">Kasus A (Skor 95% — Pasti):</div>
+              <div className="text-slate-300">"Kirim email ke <strong>satoshi@bitcoin.org</strong>"</div>
+              <div className="text-[10px] text-slate-400 font-sans">➔ Format regex dan domain valid. AI 95% yakin ini adalah EMAIL_ADDRESS.</div>
+            </div>
+
+            <div className="p-2.5 bg-slate-900 border border-slate-855 rounded-lg space-y-1">
+              <div className="text-amber-400 font-semibold font-sans">Kasus B (Skor 45% — Ambigu / Ragu):</div>
+              <div className="text-slate-300">"Saya menginap di <strong>Paris Hilton</strong> malam ini"</div>
+              <div className="text-[10px] text-slate-400 font-sans">➔ Kata "Paris" bisa nama kota (LOCATION) atau nama hotel/orang. AI hanya 45% yakin.</div>
+            </div>
+          </div>
+
+          {/* Threshold Slider Logic Explanation */}
+          <div className="p-4 bg-blue-950/20 border border-blue-800/40 rounded-xl space-y-2">
+            <h4 className="font-semibold text-blue-200">
+              💡 Cara Kerja Slider Ambang Batas (*Threshold*):
+            </h4>
+            <p className="text-slate-300">
+              Jika Anda menyetel threshold ke <strong>75%</strong>:
+            </p>
+            <ul className="list-disc pl-4 space-y-1 text-slate-300 text-[11px]">
+              <li>Entitas dengan skor <strong>≥ 75%</strong> akan <strong>DIPROTEKSI (Ditokenisasi/Disensor)</strong>.</li>
+              <li>Entitas dengan skor <strong>&lt; 75%</strong> akan <strong>DILOLOSKAN</strong> (diabaikan) agar tidak salah sensor (*mencegah False Positive*).</li>
+            </ul>
+          </div>
+
+          {/* Recommendations Table */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+              <div className="font-semibold text-purple-300">85% - 95% (Ketat)</div>
+              <p className="text-slate-400 text-[10px]">Hanya menyensor kata yang 100% pasti. Menghindari kata biasa ikut tersensor.</p>
+            </div>
+            <div className="p-3 bg-slate-950 border border-emerald-500/40 rounded-xl space-y-1">
+              <div className="font-semibold text-emerald-300">70% - 80% (Rekomendasi)</div>
+              <p className="text-slate-400 text-[10px]">Keseimbangan ideal antara perlindungan data dan kelancaran bahasa.</p>
+            </div>
+            <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+              <div className="font-semibold text-amber-300">30% - 50% (Agresif)</div>
+              <p className="text-slate-400 text-[10px]">Menyensor apa pun yang dicurigai mirip data pribadi (mode paranoid).</p>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: '5. Privacy Operating Modes (Strict / Balanced / Bypass)',
       badge: 'Operational Resilience',
       badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
       subtitle: 'Mengatur bagaimana proxy bersikap jika layanan NLP atau Redis mengalami gangguan',
@@ -262,7 +330,7 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       ),
     },
     {
-      title: '5. Cara Menghubungkan Aplikasi Klien & 9router',
+      title: '6. Cara Menghubungkan Aplikasi Klien & 9router',
       badge: 'Integration Guide',
       badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
       subtitle: 'Hanya perlu mengganti Base URL di aplikasi klien atau SDK Anda',
@@ -276,7 +344,7 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
                 Base URL Asli: https://api.openai.com/v1 (atau https://api.anthropic.com)
               </div>
               <div className="text-emerald-400 bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-800/40">
-                ➔ Base URL Proxy: http://localhost:3000/v1
+                ➔ Base URL Proxy: http://localhost:3000/p/9router/v1
               </div>
             </div>
           </div>
