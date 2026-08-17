@@ -67,15 +67,15 @@
   Delivered Safe     │                  │  (SSE / Non-Stream)   │     Vault    │
   ◄───────────────── │ ─────────────────┴───────────────────────┘              │
                      │    6. Real-time Plaintext Restored                      │
-                     └───────────────────────────────┬─────────────────────────┘
+                     └─────────────────────────────────────────────────────────┘
 ```
 
 ### 🔬 End-to-End Payload Lifecycle Example
 
-Berikut gambaran nyata transformasi data dari sisi Client, saat melintasi Privacy Gateway, hingga diproses oleh Cloud AI:
+Below is a concrete example demonstrating data transformation across the entire pipeline—from the client, through the Privacy Gateway, to the upstream AI provider and back:
 
-#### 1️⃣ Request Dikirim oleh Client (Prompt Mengandung Data Sensitif)
-Client/IDE mengirim request biasa yang berisi nama orang, email, dan alamat dompet crypto:
+#### 1️⃣ Client Sends Prompt Containing Sensitive PII
+Your local client, SDK, or IDE sends a standard API request containing personal names, email addresses, and crypto wallet addresses:
 ```json
 // POST http://localhost:8080/p/openai/v1/chat/completions
 {
@@ -89,21 +89,21 @@ Client/IDE mengirim request biasa yang berisi nama orang, email, dan alamat domp
 }
 ```
 
-#### 2️⃣ Privacy Gateway Menghasilkan Token & Disimpan di In-Memory Vault
-Proxy mencegat request, mendeteksi entitas PII via Presidio NLP, lalu membuat *cryptographic surrogate token* unik:
+#### 2️⃣ Gateway Generates Surrogate Tokens & Stores Mapping in Vault
+The proxy intercepts the prompt, detects PII entities via Presidio NLP analyzer, and generates unique cryptographic surrogate tokens:
 
-| Entity Type | Sensitive Value Asli | Surrogate Token (Sent to AI) |
+| Entity Type | Original Sensitive Value | Surrogate Token (Sent to AI) |
 |---|---|---|
 | `PERSON` | `Alice Walker` | `[8b4b7a8b:PERSON_001]` |
 | `EMAIL_ADDRESS` | `alice@techcorp.com` | `[8b4b7a8b:EMAIL_ADDRESS_001]` |
 | `ETHEREUM_ADDRESS` | `0x71C8F794B32145429631994304244a1234567890` | `[8b4b7a8b:ETHEREUM_ADDRESS_001]` |
 
-> 🛡️ **Zero-Leak Guarantee:** Mapping ini disimpan di Redis Vault dengan TTL sementara. Nilai sensitif asli **TIDAK PERNAH** dikirim keluar ke internet ataupun dicatat di log disk.
+> 🛡️ **Zero-Leak Guarantee:** This mapping is stored securely in an ephemeral in-memory vault with TTL. Real plaintext values are **NEVER** transmitted over the internet or written to log files.
 
-#### 3️⃣ Payload Sanitasi Diterima oleh Cloud AI Provider (Zero PII Leak)
-Provider AI (OpenAI / Anthropic / 9router) hanya menerima token acak:
+#### 3️⃣ Sanitized Payload Reaches Cloud AI Provider (Zero PII Leak)
+The cloud LLM provider (OpenAI, Anthropic, OpenRouter, 9router) only receives randomized surrogate tokens:
 ```json
-// Upstream Request received by Cloud AI Provider
+// Upstream request received by Cloud AI Provider
 {
   "model": "gpt-4o",
   "messages": [
@@ -115,10 +115,10 @@ Provider AI (OpenAI / Anthropic / 9router) hanya menerima token acak:
 }
 ```
 
-#### 4️⃣ Cloud AI Menjawab Menggunakan Surrogate Tokens
-Model AI memproses logika prompt dan mengembalikan jawaban yang mereferensikan surrogate token:
+#### 4️⃣ Cloud AI Generates Response with Surrogate Tokens
+The AI processes the prompt logic and generates a completion referencing the surrogate tokens:
 ```json
-// Raw Response from Cloud AI Provider
+// Raw response returned by Cloud AI Provider
 {
   "choices": [
     {
@@ -131,10 +131,10 @@ Model AI memproses logika prompt dan mengembalikan jawaban yang mereferensikan s
 }
 ```
 
-#### 5️⃣ Gateway Memulihkan Data Asli Secara Transparan ke Client
-Detokenizer (termasuk streaming SSE) memulihkan token kembali ke nilai aslinya secara *real-time* sebelum diserahkan ke client:
+#### 5️⃣ Gateway Restores Original Plaintext Transparently to Client
+The streaming/non-streaming detokenizer swaps tokens back to their original values in real-time before delivering the response to your client:
 ```json
-// Final Detokenized Response Received by Client / IDE
+// Final detokenized response received by your Client / IDE
 {
   "choices": [
     {
