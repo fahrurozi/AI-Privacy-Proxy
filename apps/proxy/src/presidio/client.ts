@@ -20,6 +20,8 @@ const FALLBACK_PATTERNS: { type: string; regex: RegExp; score: number }[] = [
   { type: 'EMAIL_ADDRESS', regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, score: 0.95 },
   { type: 'CREDIT_CARD', regex: /\b(?:\d{4}[-\s]?){3}\d{4}\b/g, score: 0.9 },
   { type: 'PHONE_NUMBER', regex: /(?:\+\d{1,3}[-.\s]*)?(?:\(\d{2,4}\)|\d{2,4})[-.\s]*\d{3,4}(?:[-.\s]*\d{3,4})?\b/g, score: 0.85 },
+  // Person name pattern fallback (Capitalized First & Last names)
+  { type: 'PERSON', regex: /\b(?:Dr\.|Mr\.|Mrs\.|Ms\.)?\s*([A-Z][a-z]{1,20}(?:\s+[A-Z][a-z]{1,20})+)\b/g, score: 0.8 },
 ];
 
 export async function analyzeTextWithFallback(text: string): Promise<PresidioEntity[]> {

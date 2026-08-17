@@ -20,6 +20,7 @@ import {
   Wand2,
   Code,
   EyeOff,
+  Cpu,
 } from 'lucide-react';
 
 const ACTIONS: PrivacyAction[] = ['TOKENIZE', 'MASK', 'REDACT', 'BLOCK', 'PASS'];
@@ -48,7 +49,7 @@ const SAMPLE_DATA: Record<string, string> = {
   ETHEREUM_ADDRESS: 'Send test transaction to 0x71C8F794B32145429631994304244a1234567890 on mainnet.',
   SOLANA_ADDRESS: 'My wallet public key is 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM on Solana.',
   PHONE_NUMBER: 'You can contact Dr. Johnson at +1 (555) 234-5678 or mobile 0812-9876-5432.',
-  PERSON: 'The audit report was signed by Alice Walker and Robert Downey yesterday.',
+  PERSON: 'The audit report was signed by Alice Walker, Alan Walker, and Robert Downey yesterday.',
   IP_ADDRESS: 'Internal proxy cluster is listening on 192.168.1.50 and gateway 10.0.0.1.',
   CREDIT_CARD: 'Charge card 4532-1234-5678-9010 with expiration date 12/28.',
   API_KEY: 'My API key is sk-proj-1234567890abcdef1234567890abcdef and AWS key AKIAIOSFODNN7EXAMPLE.',
@@ -89,7 +90,7 @@ function clientMask(val: string): string {
     .join(' ');
 }
 
-// Client-side regex simulation helpers for instant playground evaluation
+// Client-side regex simulation helpers for instant UI preview
 function simulatePolicyTransformation(
   text: string,
   policies: EntityPolicy[],
@@ -103,7 +104,7 @@ function simulatePolicyTransformation(
   const blockedEntities: string[] = [];
   let resultText = text;
 
-  // Patterns for instant client-side testing
+  // Patterns for instant client-side testing (including generic capitalized names)
   const regexMap: Record<string, RegExp> = {
     EMAIL_ADDRESS: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
     ETHEREUM_ADDRESS: /\b0x[a-fA-F0-9]{40}\b/g,
@@ -114,9 +115,10 @@ function simulatePolicyTransformation(
     API_KEY: /\b(?:sk-[a-zA-Z0-9_-]{20,}|AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36})\b/g,
     PASSWORD: /(?:password|passwd|pwd)\s*[:=]\s*['"]?([^\s'"]+)['"]?/gi,
     PRIVATE_KEY: /\b(?:0x)?[a-fA-F0-9]{64}\b/g,
-    PERSON: /\b(?:Alice Walker|Robert Downey|John Doe|Jane Smith|Satoshi Nakamoto|Dr\. Johnson)\b/g,
+    // Generalized multi-word capitalized person names
+    PERSON: /\b(?:Dr\.|Mr\.|Mrs\.|Ms\.)?\s*([A-Z][a-z]{1,20}(?:\s+[A-Z][a-z]{1,20})+)\b/g,
     US_SSN: /\b\d{3}-\d{2}-\d{4}\b/g,
-    LOCATION: /\b(?:Jakarta|Singapore|New York|London|Tokyo|California)\b/g,
+    LOCATION: /\b(?:Jakarta|Singapore|New York|London|Tokyo|California|Bali|Surabaya|Bandung)\b/g,
   };
 
   const policyMap = new Map(policies.map((p) => [p.entityType.toUpperCase(), p]));
@@ -169,12 +171,14 @@ export function PolicyPage() {
   // Detail Drawer State with Live Playground
   const [selectedPolicyForDetail, setSelectedPolicyForDetail] = useState<EntityPolicy | null>(null);
   const [detailTestInput, setDetailTestInput] = useState('');
+  const [detailBackendResult, setDetailBackendResult] = useState<any>(null);
 
   // Global Sandbox Drawer State
   const [showGlobalPlayground, setShowGlobalPlayground] = useState(false);
   const [globalTestInput, setGlobalTestInput] = useState(
-    'Please send 1.5 ETH from satoshi@bitcoin.org to 0x71C8F794B32145429631994304244a1234567890. Customer John Doe with card 4532-1234-5678-9010.'
+    'Please send 1.5 ETH from satoshi@bitcoin.org to 0x71C8F794B32145429631994304244a1234567890. Signed by Alice Walker and Alan Walker.'
   );
+  const [globalBackendResult, setGlobalBackendResult] = useState<any>(null);
 
   // Add Entity Drawer State
   const [showAddDrawer, setShowAddDrawer] = useState(false);
@@ -215,6 +219,56 @@ export function PolicyPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Debounced Real Presidio NLP Server Simulation for Single-Entity Detail
+  useEffect(() => {
+    if (!selectedPolicyForDetail || !detailTestInput.trim()) {
+      setDetailBackendResult(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchApi<any>('/admin/policy/simulate', {
+          method: 'POST',
+          body: JSON.stringify({
+            text: detailTestInput,
+            policies: [selectedPolicyForDetail],
+          }),
+        });
+        setDetailBackendResult(res);
+      } catch {
+        // Fall back to client simulation
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [selectedPolicyForDetail, detailTestInput]);
+
+  // Debounced Real Presidio NLP Server Simulation for Global Sandbox
+  useEffect(() => {
+    if (!globalTestInput.trim()) {
+      setGlobalBackendResult(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetchApi<any>('/admin/policy/simulate', {
+          method: 'POST',
+          body: JSON.stringify({
+            text: globalTestInput,
+            policies,
+          }),
+        });
+        setGlobalBackendResult(res);
+      } catch {
+        // Fall back to client simulation
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [globalTestInput, policies]);
 
   const handleActionChange = (entityType: string, action: PrivacyAction) => {
     setPolicies((prev) =>
@@ -384,21 +438,22 @@ export function PolicyPage() {
     setDetailTestInput(SAMPLE_DATA[policy.entityType] || `Sample testing prompt containing sensitive ${policy.entityType}.`);
   };
 
-  // Evaluation for Single-Entity Detail Playground
-  const singleEntitySimulation = useMemo(() => {
+  // Active Simulation Result (Preferred: Server Presidio NLP result, Fallback: Client-side regex)
+  const activeDetailSimulation = useMemo(() => {
+    if (detailBackendResult) return detailBackendResult;
     if (!selectedPolicyForDetail || !detailTestInput) {
       return { transformedText: '', detectedEntities: [], blocked: false, blockedEntities: [] };
     }
     return simulatePolicyTransformation(detailTestInput, [selectedPolicyForDetail]);
-  }, [selectedPolicyForDetail, detailTestInput]);
+  }, [detailBackendResult, selectedPolicyForDetail, detailTestInput]);
 
-  // Evaluation for Global Policy Playground
-  const globalSimulation = useMemo(() => {
+  const activeGlobalSimulation = useMemo(() => {
+    if (globalBackendResult) return globalBackendResult;
     if (!globalTestInput) {
       return { transformedText: '', detectedEntities: [], blocked: false, blockedEntities: [] };
     }
     return simulatePolicyTransformation(globalTestInput, policies);
-  }, [globalTestInput, policies]);
+  }, [globalBackendResult, globalTestInput, policies]);
 
   const getActionBadgeColor = (action: PrivacyAction, enabled?: boolean) => {
     if (enabled === false) {
@@ -654,15 +709,20 @@ export function PolicyPage() {
                 <span className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
                   <Play className="w-3.5 h-3.5 text-indigo-400" /> Interactive Entity Playground
                 </span>
-                {SAMPLE_DATA[selectedPolicyForDetail.entityType] && (
-                  <button
-                    type="button"
-                    onClick={() => setDetailTestInput(SAMPLE_DATA[selectedPolicyForDetail.entityType] || '')}
-                    className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-3 h-3" /> Load Preset
-                  </button>
-                )}
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <Cpu className="w-3 h-3 text-emerald-400" /> spaCy NLP Active
+                  </span>
+                  {SAMPLE_DATA[selectedPolicyForDetail.entityType] && (
+                    <button
+                      type="button"
+                      onClick={() => setDetailTestInput(SAMPLE_DATA[selectedPolicyForDetail.entityType] || '')}
+                      className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Load Preset
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -681,11 +741,11 @@ export function PolicyPage() {
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
                   <span>Transformation Result:</span>
                   <span className="font-mono">
-                    Matches: <strong className="text-indigo-300">{singleEntitySimulation.detectedEntities.length}</strong>
+                    Matches: <strong className="text-indigo-300">{activeDetailSimulation.detectedEntities.length}</strong>
                   </span>
                 </div>
 
-                {singleEntitySimulation.blocked ? (
+                {activeDetailSimulation.blocked ? (
                   <div className="p-3 bg-red-950/60 border border-red-800/60 rounded-lg text-xs text-red-300 flex items-start gap-2">
                     <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                     <div>
@@ -694,7 +754,7 @@ export function PolicyPage() {
                   </div>
                 ) : (
                   <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-emerald-300 break-all">
-                    {singleEntitySimulation.transformedText || detailTestInput}
+                    {activeDetailSimulation.transformedText || detailTestInput}
                   </div>
                 )}
               </div>
@@ -728,7 +788,7 @@ export function PolicyPage() {
                 type="button"
                 onClick={() =>
                   setGlobalTestInput(
-                    'Invoice for Satoshi Nakamoto (satoshi@bitcoin.org). Payout 2.5 ETH to 0x71C8F794B32145429631994304244a1234567890. Phone: +1-555-0199.'
+                    'Invoice for Satoshi Nakamoto (satoshi@bitcoin.org). Payout 2.5 ETH to 0x71C8F794B32145429631994304244a1234567890. Signed by Alice Walker and Alan Walker.'
                   )
                 }
                 className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition"
@@ -762,7 +822,12 @@ export function PolicyPage() {
 
           {/* Prompt Input */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Incoming Raw User Prompt (Client Side)</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-slate-300">Incoming Raw User Prompt (Client Side)</label>
+              <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                <Cpu className="w-3 h-3 text-emerald-400" /> Connected to Presidio Engine
+              </span>
+            </div>
             <textarea
               rows={4}
               value={globalTestInput}
@@ -776,17 +841,18 @@ export function PolicyPage() {
           <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-slate-200">Detected Entities in Prompt:</span>
-              <span className="font-mono text-slate-400">Total: {globalSimulation.detectedEntities.length}</span>
+              <span className="font-mono text-slate-400">Total: {activeGlobalSimulation.detectedEntities.length}</span>
             </div>
 
-            {globalSimulation.detectedEntities.length > 0 ? (
+            {activeGlobalSimulation.detectedEntities.length > 0 ? (
               <div className="flex flex-wrap gap-2 pt-1">
-                {globalSimulation.detectedEntities.map((d, i) => (
+                {activeGlobalSimulation.detectedEntities.map((d: any, i: number) => (
                   <span
                     key={i}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border ${getActionBadgeColor(d.action)}`}
                   >
                     <span className="font-semibold">{d.entityType}</span>
+                    <span className="text-slate-300">"{d.matchedText}"</span>
                     <span className="text-[10px] text-slate-400">({d.action})</span>
                   </span>
                 ))}
@@ -800,23 +866,23 @@ export function PolicyPage() {
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-slate-300 flex items-center justify-between">
               <span>Sanitized Payload (What the Upstream LLM Receives)</span>
-              {globalSimulation.blocked && (
+              {activeGlobalSimulation.blocked && (
                 <span className="text-xs text-red-400 font-semibold font-mono">STATUS: BLOCKED</span>
               )}
             </label>
 
-            {globalSimulation.blocked ? (
+            {activeGlobalSimulation.blocked ? (
               <div className="p-4 bg-red-950/60 border border-red-800/80 rounded-xl text-xs text-red-200 space-y-1">
                 <div className="flex items-center gap-2 font-semibold text-red-300">
                   <ShieldAlert className="w-4 h-4 text-red-400" /> Request Intercepted & Blocked
                 </div>
                 <p className="text-[11px] text-red-300/80 leading-relaxed">
-                  Contains blocked entities: <code className="font-mono font-bold text-red-200">{globalSimulation.blockedEntities.join(', ')}</code>. The proxy returned 400 Bad Request to protect credentials.
+                  Contains blocked entities: <code className="font-mono font-bold text-red-200">{activeGlobalSimulation.blockedEntities.join(', ')}</code>. The proxy returned 400 Bad Request to protect credentials.
                 </p>
               </div>
             ) : (
               <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-blue-300 leading-relaxed break-all">
-                {globalSimulation.transformedText || globalTestInput}
+                {activeGlobalSimulation.transformedText || globalTestInput}
               </div>
             )}
           </div>

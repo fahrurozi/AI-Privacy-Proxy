@@ -5,12 +5,14 @@ import {
   CustomRecognizerConfig,
   EntityPolicy,
   UpstreamProvider,
+  PrivacyMode,
 } from '@ai-privacy-proxy/shared';
 import { config } from '../config/index.js';
 import { policyRegistry } from '../config/policy.js';
 import { upstreamStore } from '../config/upstream-store.js';
 import { vault } from '../vault/redis-vault.js';
-import { checkPresidioHealth } from '../presidio/client.js';
+import { checkPresidioHealth, analyzeText } from '../presidio/client.js';
+import { maskValue } from '../privacy/tokenizer.js';
 import { streamStateManager } from '../streaming/stream-state.js';
 
 // In-memory metrics tracking
@@ -27,7 +29,7 @@ export class AdminMetricsTracker {
   recordRequest(event: {
     requestId: string;
     sessionId: string;
-    action: 'TOKENIZE' | 'REDACT' | 'BLOCK' | 'PASS';
+    action: 'TOKENIZE' | 'MASK' | 'REDACT' | 'BLOCK' | 'PASS';
     entitiesDetected: string[];
     tokensCount: number;
     presidioLatencyMs: number;
@@ -225,6 +227,68 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ status: 'ok', policies: policyRegistry.getAllPolicies() });
   });
 
+  // Policy Sandbox & Live Simulation (Uses real Presidio spaCy NLP model!)
+  fastify.post('/admin/policy/simulate', async (req, reply) => {
+    if (!verifyAdminAuth(req, reply)) return;
+    const body = req.body as { text?: string; policies?: EntityPolicy[] };
+    const text = body?.text || '';
+
+    if (!text.trim()) {
+      return reply.send({
+        transformedText: '',
+        detectedEntities: [],
+        blocked: false,
+        blockedEntities: [],
+        presidioLatencyMs: 0,
+      });
+    }
+
+    const { entities, latencyMs } = await analyzeText(text);
+
+    // Build policy lookup map
+    const policyMap = new Map((body.policies || policyRegistry.getAllPolicies()).map((p) => [p.entityType.toUpperCase(), p]));
+
+    // Sort descending by start to avoid position drift during replacements
+    const sorted = [...entities].sort((a, b) => b.start - a.start);
+    let transformed = text;
+    const detected: Array<{ entityType: string; matchedText: string; action: string; score: number }> = [];
+    const blockedEntities: string[] = [];
+    let counter = 1;
+
+    for (const ent of sorted) {
+      const pol = policyMap.get(ent.entity_type.toUpperCase()) || { action: 'TOKENIZE', enabled: true, minScore: 0.6 };
+      if (pol.enabled === false) continue;
+      if (ent.score < (pol.minScore ?? 0.6)) continue;
+
+      const matchedText = text.slice(ent.start, ent.end);
+      detected.unshift({
+        entityType: ent.entity_type,
+        matchedText,
+        action: pol.action,
+        score: ent.score,
+      });
+
+      if (pol.action === 'BLOCK') {
+        if (!blockedEntities.includes(ent.entity_type)) blockedEntities.push(ent.entity_type);
+      } else if (pol.action === 'REDACT') {
+        transformed = transformed.slice(0, ent.start) + `[REDACTED_${ent.entity_type}]` + transformed.slice(ent.end);
+      } else if (pol.action === 'MASK') {
+        transformed = transformed.slice(0, ent.start) + maskValue(matchedText, ent.entity_type) + transformed.slice(ent.end);
+      } else if (pol.action === 'TOKENIZE') {
+        const pad = String(counter++).padStart(3, '0');
+        transformed = transformed.slice(0, ent.start) + `[PREFIX:${ent.entity_type}_${pad}]` + transformed.slice(ent.end);
+      }
+    }
+
+    return reply.send({
+      transformedText: blockedEntities.length > 0 ? '' : transformed,
+      detectedEntities: detected,
+      blocked: blockedEntities.length > 0,
+      blockedEntities,
+      presidioLatencyMs: latencyMs,
+    });
+  });
+
   // Recognizers
   fastify.get('/admin/recognizers', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
@@ -289,7 +353,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const body = req.body as {
       defaultProviderId?: string;
       upstreamBaseUrl?: string;
-      privacyMode?: 'strict' | 'balanced';
+      privacyMode?: PrivacyMode;
       vaultTtlSeconds?: number;
       providers?: UpstreamProvider[];
     };
