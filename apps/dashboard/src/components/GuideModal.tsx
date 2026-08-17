@@ -192,10 +192,10 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
               <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
                 REDACT
               </span>
-              <span className="font-semibold text-slate-200">Permanent Redaction</span>
+              <span className="font-semibold text-slate-200">Permanent Redaction (1 Arah)</span>
             </div>
             <p className="text-slate-400 text-[11px] leading-relaxed">
-              Menghapus nilai asli dan menimpa dengan <code>[REDACTED_ENTITY]</code> secara permanen tanpa disimpan di vault.
+              Menghapus nilai asli dan menimpa dengan label <code>[REDACTED_ENTITY]</code> secara permanen. Nilai ini <strong>TIDAK disimpan di vault</strong>, sehingga saat AI merespons, teks tetap berwujud <code>[REDACTED]</code> dan <strong>TIDAK AKAN dikembalikan menjadi nilai asli</strong> (berbeda dengan <code>TOKENIZE</code> yang otomatis dipulihkan kembali).
             </p>
           </div>
 
