@@ -94,12 +94,12 @@ function AnimatedArchitectureFlow() {
     },
   ];
 
-  // Auto-advance animation timer
+  // Auto-advance animation timer every 2.4s
   useEffect(() => {
     if (!isPlaying) return;
     const interval = setInterval(() => {
       setActiveStage((prev) => (prev + 1) % stages.length);
-    }, 2800);
+    }, 2400);
     return () => clearInterval(interval);
   }, [isPlaying, stages.length]);
 
@@ -108,11 +108,18 @@ function AnimatedArchitectureFlow() {
   return (
     <div className="space-y-4">
       {/* Animated Pipeline Stage Navigator */}
-      <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-4 shadow-xl">
+      <div className="p-5 bg-slate-950 border border-slate-800 rounded-2xl space-y-4 shadow-xl relative overflow-hidden">
+        {/* Header Controls */}
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-blue-400" /> Interactive Flow Pipeline
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" /> Interactive Flow Pipeline
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" /> Auto-Playing
+            </span>
+          </div>
+
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -120,78 +127,105 @@ function AnimatedArchitectureFlow() {
               className="flex items-center gap-1 px-2.5 py-1 text-[11px] bg-slate-900 hover:bg-slate-850 text-slate-300 rounded-lg border border-slate-800 transition font-mono"
             >
               {isPlaying ? <Pause className="w-3 h-3 text-amber-400" /> : <Play className="w-3 h-3 text-emerald-400" />}
-              <span>{isPlaying ? 'Pause Animation' : 'Play Flow'}</span>
+              <span>{isPlaying ? 'Pause' : 'Play'}</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveStage(0)}
               className="p-1 text-slate-400 hover:text-slate-200 bg-slate-900 rounded-lg border border-slate-800 transition"
-              title="Restart from beginning"
+              title="Restart from Stage 1"
             >
               <RotateCcw className="w-3 h-3" />
             </button>
           </div>
         </div>
 
-        {/* 4 Connected Stage Cards with Animated Pulse Line */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 relative">
-          {stages.map((st, idx) => {
-            const Icon = st.icon;
-            const isActive = activeStage === idx;
-            const isPassed = activeStage > idx;
+        {/* 4 Connected Stages with Animated Flow Lines */}
+        <div className="relative">
+          {/* Main Stage Grid with Animated Connectors */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 relative z-10">
+            {stages.map((st, idx) => {
+              const Icon = st.icon;
+              const isActive = activeStage === idx;
+              const isPassed = activeStage > idx;
 
-            return (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => {
-                  setActiveStage(idx);
-                  setIsPlaying(false);
-                }}
-                className={`p-3 rounded-xl border text-left transition-all duration-300 relative flex flex-col justify-between ${
-                  isActive
-                    ? `${st.glow} ring-2 ring-blue-500/40 transform scale-[1.02]`
-                    : isPassed
-                    ? 'bg-slate-900/60 border-slate-800/80 text-slate-400'
-                    : 'bg-slate-950 border-slate-850 text-slate-500 hover:border-slate-800'
-                }`}
-              >
-                {/* Active pulsating beacon indicator */}
-                {isActive && (
-                  <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
-                  </span>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
+              return (
+                <div key={st.id} className="relative flex flex-col">
+                  {/* Stage Card */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveStage(idx);
+                      setIsPlaying(false);
+                    }}
+                    className={`w-full p-3.5 rounded-xl border text-left transition-all duration-300 relative flex flex-col justify-between flex-1 ${
                       isActive
-                        ? 'bg-blue-500/20 border-blue-400/40 text-blue-300'
-                        : 'bg-slate-900 border-slate-800 text-slate-400'
-                    }`}>
-                      <Icon className="w-3.5 h-3.5" />
+                        ? `${st.glow} ring-2 ring-blue-500/50 transform scale-[1.02]`
+                        : isPassed
+                        ? 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
+                        : 'bg-slate-950 border-slate-850 text-slate-500 hover:border-slate-800'
+                    }`}
+                  >
+                    {/* Active Pulsating Beacon */}
+                    {isActive && (
+                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500" />
+                      </span>
+                    )}
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition ${
+                          isActive
+                            ? 'bg-blue-500/20 border-blue-400/40 text-blue-300 shadow-md shadow-blue-500/20'
+                            : 'bg-slate-900 border-slate-800 text-slate-400'
+                        }`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="font-mono text-[10px] text-slate-500 font-bold">0{idx + 1}</span>
+                      </div>
+
+                      <div className={`font-semibold text-xs transition ${isActive ? 'text-slate-100' : 'text-slate-400'}`}>
+                        {st.shortTitle}
+                      </div>
                     </div>
-                    <span className="font-mono text-[10px] text-slate-500 font-bold">0{idx + 1}</span>
-                  </div>
 
-                  <div className={`font-semibold text-xs transition ${isActive ? 'text-slate-100' : 'text-slate-400'}`}>
-                    {st.shortTitle}
-                  </div>
-                </div>
+                    <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                      <span className="text-[9px] font-mono text-slate-500 truncate">{st.actionBadge}</span>
+                      {isPassed && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                    </div>
+                  </button>
 
-                <div className="mt-2 pt-2 border-t border-slate-850/60 flex items-center justify-between">
-                  <span className="text-[9px] font-mono text-slate-500 truncate">{st.actionBadge}</span>
-                  {isPassed && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                  {/* Horizontal Connector Line for Desktop (between cards idx and idx+1) */}
+                  {idx < stages.length - 1 && (
+                    <div className="hidden sm:block absolute -right-3 top-1/2 -translate-y-1/2 w-3 h-0.5 z-20 pointer-events-none">
+                      <div className={`w-full h-full rounded-full relative overflow-hidden ${
+                        isActive ? 'bg-blue-500' : 'bg-slate-800'
+                      }`}>
+                        {/* Animated traveling data particle */}
+                        {isActive && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-200 to-transparent animate-pulse" />
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </button>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          {/* Animated Connecting Track Bar at Bottom */}
+          <div className="mt-3 relative h-1 bg-slate-900 border border-slate-850 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 transition-all duration-500 ease-out"
+              style={{ width: `${((activeStage + 1) / stages.length) * 100}%` }}
+            />
+          </div>
         </div>
 
         {/* Dynamic Detail Card for the Currently Active Stage */}
-        <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-xl space-y-2.5 transition-all duration-300">
+        <div className="p-4 bg-slate-900/95 border border-slate-800 rounded-xl space-y-2.5 transition-all duration-300 shadow-inner">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-100">{current.title}</span>
@@ -199,7 +233,7 @@ function AnimatedArchitectureFlow() {
                 {current.tag}
               </span>
             </div>
-            <span className="text-[11px] text-slate-400">{current.summary}</span>
+            <span className="text-[11px] text-slate-400 font-sans">{current.summary}</span>
           </div>
 
           <div>
