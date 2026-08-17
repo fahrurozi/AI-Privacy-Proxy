@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { loginWithKey } from '../lib/api.js';
-import { Shield, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
+import { Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
 
 export function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const [adminKey, setAdminKeyInput] = useState('');
@@ -37,8 +37,8 @@ export function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
       <div className="w-full max-w-md relative z-10">
         {/* Brand Logo & Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/25 mb-4 border border-blue-400/30">
-            <Shield className="w-7 h-7" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl overflow-hidden shadow-2xl shadow-blue-500/25 mb-4 border border-slate-700/60 bg-slate-900">
+            <img src="/dashboard/logo.jpg" alt="AI Privacy Proxy Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-slate-100 tracking-tight">AI Privacy Proxy</h1>
           <p className="text-xs text-slate-400 mt-1">Self-Hosted Gateway & Admin Console</p>

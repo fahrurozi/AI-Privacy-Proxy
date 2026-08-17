@@ -18,7 +18,6 @@ import {
   Settings,
   Menu,
   X,
-  Lock,
   LogOut,
   User,
 } from 'lucide-react';
@@ -137,11 +136,11 @@ export function DashboardApp() {
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Brand Header */}
+        {/* Brand Header with Custom Logo */}
         <div className="p-5 flex items-center justify-between border-b border-slate-800/80">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-              <Lock className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl overflow-hidden shadow-lg shadow-blue-500/20 border border-slate-700/60 bg-slate-900 shrink-0">
+              <img src="/dashboard/logo.jpg" alt="AI Privacy Proxy Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <div className="font-bold text-sm tracking-tight text-slate-100">Privacy Proxy</div>
