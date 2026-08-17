@@ -4,13 +4,13 @@ services:
       context: .
       dockerfile: apps/proxy/Dockerfile
     environment:
-      UPSTREAM_BASE_URL: ${UPSTREAM_BASE_URL}
+      UPSTREAM_BASE_URL: ${UPSTREAM_BASE_URL:-https://api.openai.com}
       PRESIDIO_URL: http://presidio:5000
       REDIS_URL: redis://redis:6379
       PRIVACY_MODE: ${PRIVACY_MODE:-strict}
       VAULT_TTL_SECONDS: ${VAULT_TTL_SECONDS:-3600}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-admin-secret-key-change-me}
     depends_on:
       presidio:
         condition: service_healthy
@@ -29,20 +29,20 @@ services:
     build:
       context: apps/presidio
       dockerfile: Dockerfile
-    expose:
-      - "5000"
+    ports:
+      - "5000:5000"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
-      interval: 15s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 15s
 
   redis:
     image: redis:7-alpine
-    expose:
-      - "6379"
+    ports:
+      - "6379:6379"
     command: redis-server --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
     restart: unless-stopped
     healthcheck:
