@@ -1,4 +1,4 @@
-import { request, Dispatcher } from 'undici';
+import { ReadableStream } from 'stream/web';
 import { upstreamStore } from '../config/upstream-store.js';
 
 const HOP_BY_HOP_HEADERS = new Set([
@@ -12,6 +12,7 @@ const HOP_BY_HOP_HEADERS = new Set([
   'upgrade',
   'host',
   'content-length',
+  'accept-encoding',
 ]);
 
 export function sanitizeForwardHeaders(
@@ -36,12 +37,19 @@ export function sanitizeForwardHeaders(
   return clean;
 }
 
+export interface UpstreamFetchResponse {
+  statusCode: number;
+  headers: Record<string, string | string[] | undefined>;
+  text: () => Promise<string>;
+  body: ReadableStream<Uint8Array> | null;
+}
+
 export async function forwardUpstreamRequest(
   path: string,
   method: string,
   headers: Record<string, string | string[] | undefined>,
   body: string | Buffer | null,
-): Promise<Dispatcher.ResponseData> {
+): Promise<UpstreamFetchResponse> {
   const { targetBaseUrl, targetPath } = upstreamStore.resolveTarget(headers, path);
   const targetUrl = `${targetBaseUrl}${targetPath.startsWith('/') ? targetPath : `/${targetPath}`}`;
   const cleanHeaders = sanitizeForwardHeaders(headers);
@@ -50,11 +58,30 @@ export async function forwardUpstreamRequest(
     cleanHeaders['content-type'] = cleanHeaders['content-type'] || 'application/json';
   }
 
-  return request(targetUrl, {
-    method: method as Dispatcher.HttpMethod,
+  const fetchOptions: RequestInit = {
+    method,
     headers: cleanHeaders,
-    body: body ?? null,
-    bodyTimeout: 0, // No timeout for streaming responses
-    headersTimeout: 45_000,
-  });
+  };
+
+  if (method !== 'GET' && method !== 'HEAD' && body) {
+    fetchOptions.body = body as any;
+  }
+
+  const res = await fetch(targetUrl, fetchOptions);
+
+  const responseHeaders: Record<string, string> = {};
+  for (const [k, v] of res.headers.entries()) {
+    const lower = k.toLowerCase();
+    if (lower === 'content-encoding' || lower === 'content-length') {
+      continue;
+    }
+    responseHeaders[k] = v;
+  }
+
+  return {
+    statusCode: res.status,
+    headers: responseHeaders,
+    text: () => res.text(),
+    body: res.body as any,
+  };
 }

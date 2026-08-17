@@ -100,7 +100,7 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       return reply.send(transformedStream);
     }
 
-    const rawText = await upstreamResponse.body.text();
+    const rawText = await upstreamResponse.text();
     const detokenizedBody = await processNonStreamingResponse(
       rawText,
       processed.sessionId,
