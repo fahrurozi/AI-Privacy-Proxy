@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export type PrivacyAction = 'TOKENIZE' | 'REDACT' | 'BLOCK' | 'PASS';
+export type PrivacyAction = 'TOKENIZE' | 'MASK' | 'REDACT' | 'BLOCK' | 'PASS';
 export type PrivacyMode = 'strict' | 'balanced' | 'bypass';
 
 export interface PresidioEntity {
@@ -105,7 +105,7 @@ export interface CustomRecognizerConfig {
 
 export const EntityPolicySchema = z.object({
   entityType: z.string(),
-  action: z.enum(['TOKENIZE', 'REDACT', 'BLOCK', 'PASS']),
+  action: z.enum(['TOKENIZE', 'MASK', 'REDACT', 'BLOCK', 'PASS']),
   minScore: z.number().min(0).max(1).default(0.7),
   enabled: z.boolean().optional().default(true),
   description: z.string().optional(),

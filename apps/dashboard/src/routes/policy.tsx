@@ -19,10 +19,10 @@ import {
   ShieldAlert,
   Wand2,
   Code,
-  Regex,
+  EyeOff,
 } from 'lucide-react';
 
-const ACTIONS: PrivacyAction[] = ['TOKENIZE', 'REDACT', 'BLOCK', 'PASS'];
+const ACTIONS: PrivacyAction[] = ['TOKENIZE', 'MASK', 'REDACT', 'BLOCK', 'PASS'];
 
 const STANDARD_PRESIDIO_ENTITIES: Array<{ id: string; name: string; desc: string }> = [
   { id: 'LOCATION', name: 'LOCATION', desc: 'Geographical places, cities, countries, and physical addresses' },
@@ -60,6 +60,34 @@ const SAMPLE_DATA: Record<string, string> = {
   LOCATION: 'Server deployment in Jakarta, Singapore, and New York data centers.',
   DATE_TIME: 'System scheduled maintenance on August 25, 2026 at 14:30 UTC.',
 };
+
+function clientMask(val: string): string {
+  if (!val || val.length <= 2) return '*'.repeat(val.length || 1);
+  if (val.includes('@')) {
+    const parts = val.split('@');
+    const user = parts[0] || '';
+    const domain = parts[1] || '';
+    const maskedUser = user.length <= 2 ? `${user[0]}*` : `${user[0]}***${user[user.length - 1]}`;
+    return `${maskedUser}@${domain}`;
+  }
+  if (val.startsWith('0x') && val.length >= 10) {
+    return `${val.slice(0, 6)}...${val.slice(-4)}`;
+  }
+  if (val.length >= 32 && !val.includes(' ')) {
+    return `${val.slice(0, 4)}...${val.slice(-4)}`;
+  }
+  const digitsOnly = val.replace(/\D/g, '');
+  if (digitsOnly.length >= 10 && digitsOnly.length <= 19) {
+    return `****-****-****-${digitsOnly.slice(-4)}`;
+  }
+  if (/^[\d+\-\s()]{7,}$/.test(val) && val.length > 6) {
+    return `${val.slice(0, 3)}****${val.slice(-3)}`;
+  }
+  return val
+    .split(/\s+/)
+    .map((w) => (w.length <= 2 ? `${w[0]}*` : `${w[0]}***${w[w.length - 1]}`))
+    .join(' ');
+}
 
 // Client-side regex simulation helpers for instant playground evaluation
 function simulatePolicyTransformation(
@@ -113,6 +141,8 @@ function simulatePolicyTransformation(
         if (!blockedEntities.includes(entityType)) blockedEntities.push(entityType);
       } else if (policy.action === 'REDACT') {
         resultText = resultText.replaceAll(matchVal, `[REDACTED_${entityType}]`);
+      } else if (policy.action === 'MASK') {
+        resultText = resultText.replaceAll(matchVal, clientMask(matchVal));
       } else if (policy.action === 'TOKENIZE') {
         const pad = String(counter++).padStart(3, '0');
         const token = `[PREFIX:${entityType}_${pad}]`;
@@ -143,7 +173,7 @@ export function PolicyPage() {
   // Global Sandbox Drawer State
   const [showGlobalPlayground, setShowGlobalPlayground] = useState(false);
   const [globalTestInput, setGlobalTestInput] = useState(
-    'Please send 1.5 ETH from satoshi@bitcoin.org to 0x71C8F794B32145429631994304244a1234567890. Call Alice at +1-555-0199 if needed.'
+    'Please send 1.5 ETH from satoshi@bitcoin.org to 0x71C8F794B32145429631994304244a1234567890. Customer John Doe with card 4532-1234-5678-9010.'
   );
 
   // Add Entity Drawer State
@@ -153,7 +183,7 @@ export function PolicyPage() {
   
   // Form fields
   const [newEntity, setNewEntity] = useState('LOCATION');
-  const [newAction, setNewAction] = useState<PrivacyAction>('TOKENIZE');
+  const [newAction, setNewAction] = useState<PrivacyAction>('MASK');
   const [newScore, setNewScore] = useState(0.75);
   const [newDesc, setNewDesc] = useState(STANDARD_PRESIDIO_ENTITIES[0]?.desc || '');
   
@@ -377,6 +407,8 @@ export function PolicyPage() {
     switch (action) {
       case 'TOKENIZE':
         return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      case 'MASK':
+        return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
       case 'REDACT':
         return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
       case 'BLOCK':
@@ -393,7 +425,7 @@ export function PolicyPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Privacy Policy Settings</h1>
           <p className="text-sm text-slate-400">
-            Define real-time protection actions (TOKENIZE, REDACT, BLOCK, PASS) per detected entity type.
+            Define real-time protection actions (TOKENIZE, MASK, REDACT, BLOCK, PASS) per detected entity type.
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -590,7 +622,12 @@ export function PolicyPage() {
               <div className="text-xs text-slate-400 leading-relaxed pt-1">
                 {selectedPolicyForDetail.action === 'TOKENIZE' && (
                   <span>
-                    <strong>TOKENIZE:</strong> The detected entity text is replaced with a cryptographic token (e.g. <code className="text-blue-400 font-mono">[PREFIX:{selectedPolicyForDetail.entityType}_001]</code>) before forwarding to the upstream LLM. In streaming responses, the token is restored to plaintext automatically.
+                    <strong>TOKENIZE:</strong> The detected entity is replaced with an ephemeral token (e.g. <code className="text-blue-400 font-mono">[PREFIX:{selectedPolicyForDetail.entityType}_001]</code>) and automatically restored to the original plaintext in LLM responses.
+                  </span>
+                )}
+                {selectedPolicyForDetail.action === 'MASK' && (
+                  <span>
+                    <strong>MASK (Masking):</strong> Partially obscures characters while preserving format hints (e.g. <code className="text-cyan-400 font-mono">s***i@bitcoin.org</code>, <code className="text-cyan-400 font-mono">0x71C8...7890</code>, <code className="text-cyan-400 font-mono">****-****-****-9010</code>). Protects data while maintaining readability context without storing in the vault.
                   </span>
                 )}
                 {selectedPolicyForDetail.action === 'REDACT' && (
@@ -671,7 +708,7 @@ export function PolicyPage() {
         isOpen={showGlobalPlayground}
         onClose={() => setShowGlobalPlayground(false)}
         title="Privacy Policy Sandbox Playground"
-        subtitle="Simulate multi-entity detection, tokenization, masking, and blocking in real-time"
+        subtitle="Simulate multi-entity detection, tokenization, masking, redaction, and blocking in real-time"
         widthClass="max-w-2xl"
         footer={
           <button
@@ -828,7 +865,7 @@ export function PolicyPage() {
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
-                  <Wand2 className="w-4 h-4 text-blue-400" /> Presidio AI Library
+                  <Wand2 className="w-3.5 h-3.5 text-blue-400" /> Presidio AI Library
                 </div>
                 <span className="text-[11px] text-slate-500 leading-tight">Built-in NLP language model</span>
               </button>
@@ -843,7 +880,7 @@ export function PolicyPage() {
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
-                  <Code className="w-4 h-4 text-indigo-400" /> Custom Pattern Regex
+                  <Code className="w-3.5 h-3.5 text-indigo-400" /> Custom Pattern Regex
                 </div>
                 <span className="text-[11px] text-slate-500 leading-tight">Existing or new pattern matcher</span>
               </button>

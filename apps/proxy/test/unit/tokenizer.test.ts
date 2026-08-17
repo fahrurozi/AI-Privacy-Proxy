@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { tokenizeText } from '../../src/privacy/tokenizer.js';
+import { tokenizeText, maskValue } from '../../src/privacy/tokenizer.js';
 import { PolicyEngine } from '../../src/privacy/policy-engine.js';
 import { RedisTokenVault } from '../../src/vault/redis-vault.js';
 import { analyzeTextWithFallback } from '../../src/presidio/client.js';
+import { policyRegistry } from '../../src/config/policy.js';
 
 describe('Tokenizer & Policy Engine', () => {
   let policyEngine: PolicyEngine;
@@ -12,6 +13,42 @@ describe('Tokenizer & Policy Engine', () => {
   beforeEach(() => {
     policyEngine = new PolicyEngine();
     vault = new RedisTokenVault('redis://localhost:9999');
+  });
+
+  it('should format maskValue correctly for various data types', () => {
+    expect(maskValue('satoshi@bitcoin.org')).toBe('s***i@bitcoin.org');
+    expect(maskValue('0x71C8F794B32145429631994304244a1234567890')).toBe('0x71C8...7890');
+    expect(maskValue('4532-1234-5678-9010')).toBe('****-****-****-9010');
+    expect(maskValue('John Doe')).toBe('J***n D***e');
+  });
+
+  it('should mask entities when policy action is MASK', async () => {
+    // Set EMAIL_ADDRESS policy to MASK
+    policyRegistry.setPolicy({
+      entityType: 'EMAIL_ADDRESS',
+      action: 'MASK',
+      minScore: 0.7,
+      enabled: true,
+    });
+
+    const text = 'Contact satoshi.nakamoto@bitcoin.org for assistance.';
+    const entities = await analyzeTextWithFallback(text);
+
+    const result = await tokenizeText(text, entities, policyEngine, vault, sessionId);
+
+    expect(result.blocked).toBe(false);
+    expect(result.sanitizedText).not.toContain('satoshi.nakamoto@bitcoin.org');
+    expect(result.sanitizedText).toContain('@bitcoin.org');
+    expect(result.sanitizedText).toMatch(/s[*]+o@bitcoin\.org/);
+    expect(result.mappings.length).toBe(0); // MASK does not require token mapping in vault
+
+    // Restore back to TOKENIZE for subsequent tests
+    policyRegistry.setPolicy({
+      entityType: 'EMAIL_ADDRESS',
+      action: 'TOKENIZE',
+      minScore: 0.75,
+      enabled: true,
+    });
   });
 
   it('should tokenize email addresses and phone numbers', async () => {
