@@ -68,7 +68,7 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <div>
         <h1 className="text-2xl font-bold text-slate-100">Gateway System Settings</h1>
         <p className="text-sm text-slate-400">
