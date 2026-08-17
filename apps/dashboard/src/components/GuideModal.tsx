@@ -44,8 +44,8 @@ function AnimatedArchitectureFlow() {
       tagColor: 'text-blue-400 bg-blue-950/60 border-blue-800/50',
       icon: Terminal,
       color: 'blue',
-      glow: 'shadow-blue-500/20 border-blue-500/50 bg-blue-950/30',
-      summary: 'Prompt with raw PII leaves your IDE or app',
+      glow: 'shadow-lg shadow-blue-500/20 border-blue-500 bg-blue-950/40',
+      summary: 'Prompt with raw PII leaves your IDE or client app',
       payloadLabel: 'Raw Payload (In Transit):',
       payload: 'Prompt: "Invoice for Alice Walker (alice@techcorp.com) with payment to 0x71C8F794..."',
       actionBadge: 'Raw Sensitive Data',
@@ -58,7 +58,7 @@ function AnimatedArchitectureFlow() {
       tagColor: 'text-indigo-400 bg-indigo-950/60 border-indigo-800/50',
       icon: Shield,
       color: 'indigo',
-      glow: 'shadow-indigo-500/20 border-indigo-500/50 bg-indigo-950/30',
+      glow: 'shadow-lg shadow-indigo-500/20 border-indigo-500 bg-indigo-950/40',
       summary: 'Presidio NLP detects PII & stores tokens in Redis Vault',
       payloadLabel: 'Tokenized Ingress Payload:',
       payload: 'Prompt: "Invoice for [PREFIX:PERSON_001] ([PREFIX:EMAIL_001]) with payment to [PREFIX:CRYPTO_001]"',
@@ -72,7 +72,7 @@ function AnimatedArchitectureFlow() {
       tagColor: 'text-purple-400 bg-purple-950/60 border-purple-800/50',
       icon: Cpu,
       color: 'purple',
-      glow: 'shadow-purple-500/20 border-purple-500/50 bg-purple-950/30',
+      glow: 'shadow-lg shadow-purple-500/20 border-purple-500 bg-purple-950/40',
       summary: 'AI processes the request using anonymous tokens only',
       payloadLabel: 'Cloud AI Response (Tokens Only):',
       payload: 'Response: "I prepared the invoice for [PREFIX:PERSON_001] at [PREFIX:EMAIL_001]..."',
@@ -86,7 +86,7 @@ function AnimatedArchitectureFlow() {
       tagColor: 'text-emerald-400 bg-emerald-950/60 border-emerald-800/50',
       icon: Zap,
       color: 'emerald',
-      glow: 'shadow-emerald-500/20 border-emerald-500/50 bg-emerald-950/30',
+      glow: 'shadow-lg shadow-emerald-500/20 border-emerald-500 bg-emerald-950/40',
       summary: 'SSE response stream is detokenized back to original plaintext',
       payloadLabel: 'Final Delivered Plaintext:',
       payload: 'Response: "I prepared the invoice for Alice Walker at alice@techcorp.com..."',
@@ -106,17 +106,17 @@ function AnimatedArchitectureFlow() {
   const current = stages[activeStage] || stages[0]!;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Animated Pipeline Stage Navigator */}
-      <div className="p-5 bg-slate-950 border border-slate-800 rounded-2xl space-y-4 shadow-xl relative overflow-hidden">
+      <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl space-y-5 shadow-2xl relative overflow-hidden">
         {/* Header Controls */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-blue-400" /> Interactive Flow Pipeline
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-400" /> Interactive Flow Pipeline
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" /> Auto-Playing
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" /> Auto-Playing
             </span>
           </div>
 
@@ -124,33 +124,33 @@ function AnimatedArchitectureFlow() {
             <button
               type="button"
               onClick={() => setIsPlaying(!isPlaying)}
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] bg-slate-900 hover:bg-slate-850 text-slate-300 rounded-lg border border-slate-800 transition font-mono"
+              className="flex items-center gap-1.5 px-3 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg border border-slate-750 transition font-medium"
             >
-              {isPlaying ? <Pause className="w-3 h-3 text-amber-400" /> : <Play className="w-3 h-3 text-emerald-400" />}
-              <span>{isPlaying ? 'Pause' : 'Play'}</span>
+              {isPlaying ? <Pause className="w-3.5 h-3.5 text-amber-400" /> : <Play className="w-3.5 h-3.5 text-emerald-400" />}
+              <span>{isPlaying ? 'Pause' : 'Play Flow'}</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveStage(0)}
-              className="p-1 text-slate-400 hover:text-slate-200 bg-slate-900 rounded-lg border border-slate-800 transition"
+              className="p-1.5 text-slate-400 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 rounded-lg border border-slate-750 transition"
               title="Restart from Stage 1"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* 4 Connected Stages with Animated Flow Lines */}
+        {/* 4 Connected Stages with Prominent Connecting Pipes */}
         <div className="relative">
-          {/* Main Stage Grid with Animated Connectors */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 relative z-10">
+          {/* Main Stage Grid with Explicit Connecting Lines */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 relative z-10">
             {stages.map((st, idx) => {
               const Icon = st.icon;
               const isActive = activeStage === idx;
               const isPassed = activeStage > idx;
 
               return (
-                <div key={st.id} className="relative flex flex-col">
+                <React.Fragment key={st.id}>
                   {/* Stage Card */}
                   <button
                     type="button"
@@ -158,65 +158,70 @@ function AnimatedArchitectureFlow() {
                       setActiveStage(idx);
                       setIsPlaying(false);
                     }}
-                    className={`w-full p-3.5 rounded-xl border text-left transition-all duration-300 relative flex flex-col justify-between flex-1 ${
+                    className={`flex-1 min-w-0 p-4 rounded-xl border text-left transition-all duration-300 relative flex flex-col justify-between ${
                       isActive
-                        ? `${st.glow} ring-2 ring-blue-500/50 transform scale-[1.02]`
+                        ? `${st.glow} ring-2 ring-blue-500/50 transform scale-[1.03]`
                         : isPassed
-                        ? 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
-                        : 'bg-slate-950 border-slate-850 text-slate-500 hover:border-slate-800'
+                        ? 'bg-slate-900/80 border-slate-750 text-slate-300 hover:border-slate-600'
+                        : 'bg-slate-950 border-slate-850 text-slate-500 hover:border-slate-750'
                     }`}
                   >
                     {/* Active Pulsating Beacon */}
                     {isActive && (
-                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                      <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500" />
+                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-500" />
                       </span>
                     )}
 
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition ${
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center border transition ${
                           isActive
-                            ? 'bg-blue-500/20 border-blue-400/40 text-blue-300 shadow-md shadow-blue-500/20'
+                            ? 'bg-blue-500/25 border-blue-400/50 text-blue-300 shadow-lg shadow-blue-500/30'
                             : 'bg-slate-900 border-slate-800 text-slate-400'
                         }`}>
                           <Icon className="w-4 h-4" />
                         </div>
-                        <span className="font-mono text-[10px] text-slate-500 font-bold">0{idx + 1}</span>
+                        <span className="font-mono text-xs text-slate-500 font-bold">0{idx + 1}</span>
                       </div>
 
-                      <div className={`font-semibold text-xs transition ${isActive ? 'text-slate-100' : 'text-slate-400'}`}>
+                      <div className={`font-semibold text-xs tracking-tight transition ${isActive ? 'text-slate-100' : 'text-slate-300'}`}>
                         {st.shortTitle}
                       </div>
                     </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                      <span className="text-[9px] font-mono text-slate-500 truncate">{st.actionBadge}</span>
-                      {isPassed && <Check className="w-3 h-3 text-emerald-400 shrink-0" />}
+                    <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-slate-400 truncate">{st.actionBadge}</span>
+                      {isPassed && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                     </div>
                   </button>
 
-                  {/* Horizontal Connector Line for Desktop (between cards idx and idx+1) */}
+                  {/* Prominent Connecting Bridge between cards (Desktop) */}
                   {idx < stages.length - 1 && (
-                    <div className="hidden sm:block absolute -right-3 top-1/2 -translate-y-1/2 w-3 h-0.5 z-20 pointer-events-none">
-                      <div className={`w-full h-full rounded-full relative overflow-hidden ${
-                        isActive ? 'bg-blue-500' : 'bg-slate-800'
-                      }`}>
-                        {/* Animated traveling data particle */}
-                        {isActive && (
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-200 to-transparent animate-pulse" />
-                        )}
+                    <div className="hidden sm:flex flex-col items-center justify-center shrink-0 w-8 px-1">
+                      <div className="w-full relative flex items-center">
+                        <div className={`w-full h-1 rounded-full transition-colors duration-300 relative overflow-hidden ${
+                          isActive ? 'bg-blue-500/80 shadow-md shadow-blue-500/40' : 'bg-slate-800'
+                        }`}>
+                          {/* Traveling Photon Light Particle */}
+                          {isActive && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-200 to-transparent animate-pulse" />
+                          )}
+                        </div>
+                        <ArrowRight className={`w-3.5 h-3.5 -ml-1 transition-colors shrink-0 ${
+                          isActive ? 'text-cyan-300' : 'text-slate-700'
+                        }`} />
                       </div>
                     </div>
                   )}
-                </div>
+                </React.Fragment>
               );
             })}
           </div>
 
           {/* Animated Connecting Track Bar at Bottom */}
-          <div className="mt-3 relative h-1 bg-slate-900 border border-slate-850 rounded-full overflow-hidden">
+          <div className="mt-4 relative h-1.5 bg-slate-900 border border-slate-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 transition-all duration-500 ease-out"
               style={{ width: `${((activeStage + 1) / stages.length) * 100}%` }}
@@ -240,7 +245,7 @@ function AnimatedArchitectureFlow() {
             <div className="text-[10px] uppercase font-mono font-semibold text-slate-400 mb-1">
               {current.payloadLabel}
             </div>
-            <div className="p-2.5 bg-slate-950 border border-slate-850 rounded-lg text-xs font-mono text-blue-300 break-all leading-relaxed">
+            <div className="p-3 bg-slate-950 border border-slate-850 rounded-lg text-xs font-mono text-blue-300 break-all leading-relaxed">
               {current.payload}
             </div>
           </div>
@@ -249,7 +254,7 @@ function AnimatedArchitectureFlow() {
 
       {/* Security Perimeter Comparison */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <div className="p-3.5 bg-emerald-950/20 border border-emerald-800/40 rounded-xl space-y-1.5">
+        <div className="p-4 bg-emerald-950/20 border border-emerald-800/40 rounded-xl space-y-1.5">
           <div className="font-semibold text-emerald-300 flex items-center gap-1.5">
             <Lock className="w-4 h-4 text-emerald-400" /> Inside Trusted Perimeter (Your Machine)
           </div>
@@ -258,7 +263,7 @@ function AnimatedArchitectureFlow() {
           </p>
         </div>
 
-        <div className="p-3.5 bg-purple-950/20 border border-purple-800/40 rounded-xl space-y-1.5">
+        <div className="p-4 bg-purple-950/20 border border-purple-800/40 rounded-xl space-y-1.5">
           <div className="font-semibold text-purple-300 flex items-center gap-1.5">
             <Server className="w-4 h-4 text-purple-400" /> Outside Perimeter (Cloud AI Models)
           </div>
@@ -632,8 +637,8 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
         onClick={onClose}
       />
 
-      {/* Modal Container */}
-      <div className="relative z-10 w-full max-w-2xl bg-[#0c1220] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      {/* Modal Container: Enhanced Width to max-w-4xl lg:max-w-5xl */}
+      <div className="relative z-10 w-full max-w-4xl lg:max-w-5xl bg-[#0c1220] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="p-5 border-b border-slate-800/80 bg-slate-950/50 flex items-start justify-between gap-4">
           <div className="space-y-1">
