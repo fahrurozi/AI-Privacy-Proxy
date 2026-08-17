@@ -17,10 +17,9 @@ import {
   FlaskConical,
   RefreshCw,
   ShieldAlert,
-  Layers,
   Wand2,
   Code,
-  Edit3,
+  Regex,
 } from 'lucide-react';
 
 const ACTIONS: PrivacyAction[] = ['TOKENIZE', 'REDACT', 'BLOCK', 'PASS'];
@@ -149,11 +148,19 @@ export function PolicyPage() {
 
   // Add Entity Drawer State
   const [showAddDrawer, setShowAddDrawer] = useState(false);
-  const [entitySource, setEntitySource] = useState<'presidio' | 'custom' | 'manual'>('presidio');
+  const [entitySource, setEntitySource] = useState<'presidio' | 'custom'>('presidio');
+  const [customMode, setCustomMode] = useState<'existing' | 'new'>('existing');
+  
+  // Form fields
   const [newEntity, setNewEntity] = useState('LOCATION');
   const [newAction, setNewAction] = useState<PrivacyAction>('TOKENIZE');
   const [newScore, setNewScore] = useState(0.75);
   const [newDesc, setNewDesc] = useState(STANDARD_PRESIDIO_ENTITIES[0]?.desc || '');
+  
+  // New Custom Regex fields
+  const [newCustomRecName, setNewCustomRecName] = useState('');
+  const [newCustomPattern, setNewCustomPattern] = useState('');
+  const [newCustomTestText, setNewCustomTestText] = useState('Test text with sample value 1234567890123456');
 
   const loadData = async () => {
     try {
@@ -163,7 +170,11 @@ export function PolicyPage() {
         fetchApi<{ custom: CustomRecognizerConfig[] }>('/admin/recognizers').catch(() => ({ custom: [] })),
       ]);
       setPolicies(policyData.policies);
-      setCustomRecognizers(recData.custom || []);
+      const customList = recData.custom || [];
+      setCustomRecognizers(customList);
+      if (customList.length === 0) {
+        setCustomMode('new');
+      }
     } catch (err: any) {
       setStatusMessage({ text: `Failed to load policies: ${err.message}`, type: 'error' });
     } finally {
@@ -199,7 +210,7 @@ export function PolicyPage() {
     setPolicies((prev) => prev.filter((p) => p.entityType !== entityType));
   };
 
-  const handleSourceChange = (source: 'presidio' | 'custom' | 'manual') => {
+  const handleSourceChange = (source: 'presidio' | 'custom') => {
     setEntitySource(source);
     if (source === 'presidio') {
       const first = STANDARD_PRESIDIO_ENTITIES[0];
@@ -207,17 +218,21 @@ export function PolicyPage() {
         setNewEntity(first.name);
         setNewDesc(first.desc);
       }
-    } else if (source === 'custom') {
-      if (customRecognizers.length > 0 && customRecognizers[0]) {
-        setNewEntity(customRecognizers[0].entityType);
-        setNewDesc(`Pattern recognizer for custom entity ${customRecognizers[0].name}`);
-      } else {
-        setNewEntity('');
-        setNewDesc('');
-      }
     } else {
-      setNewEntity('');
-      setNewDesc('');
+      if (customRecognizers.length > 0) {
+        setCustomMode('existing');
+        const first = customRecognizers[0];
+        if (first) {
+          setNewEntity(first.entityType);
+          setNewDesc(`Custom pattern rule "${first.name}"`);
+        }
+      } else {
+        setCustomMode('new');
+        setNewEntity('NIK_KTP');
+        setNewCustomRecName('KTP_Indonesia');
+        setNewCustomPattern('\\b\\d{16}\\b');
+        setNewDesc('Indonesian 16-digit national identification number');
+      }
     }
   };
 
@@ -239,27 +254,82 @@ export function PolicyPage() {
     }
   };
 
-  const handleAddPolicy = (e: React.FormEvent) => {
+  // Live Regex Match Tester for New Pattern Creation inside Drawer
+  const liveRegexMatches = useMemo(() => {
+    if (!newCustomPattern || !newCustomTestText) return [];
+    try {
+      const re = new RegExp(newCustomPattern, 'g');
+      return Array.from(newCustomTestText.matchAll(re)).map((m) => m[0]);
+    } catch {
+      return [];
+    }
+  }, [newCustomPattern, newCustomTestText]);
+
+  const handleAddPolicy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEntity.trim()) return;
     const upper = newEntity.trim().toUpperCase().replace(/\s+/g, '_');
+
     if (policies.some((p) => p.entityType === upper)) {
-      setStatusMessage({ text: `Entity rule for ${upper} already exists in your policy table.`, type: 'error' });
+      setStatusMessage({ text: `Entity rule for "${upper}" already exists in your policy table.`, type: 'error' });
       return;
     }
-    setPolicies((prev) => [
-      ...prev,
-      {
-        entityType: upper,
-        action: newAction,
-        minScore: newScore,
-        enabled: true,
-        description: newDesc.trim() || 'Custom user-defined entity rule.',
-      },
-    ]);
+
+    // If creating a brand new regex pattern, register it with Presidio first!
+    if (entitySource === 'custom' && customMode === 'new') {
+      if (!newCustomPattern.trim()) {
+        setStatusMessage({ text: 'Please enter a valid Regular Expression pattern.', type: 'error' });
+        return;
+      }
+      try {
+        new RegExp(newCustomPattern);
+      } catch (err: any) {
+        setStatusMessage({ text: `Invalid Regular Expression: ${err.message}`, type: 'error' });
+        return;
+      }
+
+      try {
+        const recName = newCustomRecName.trim() || `${upper}_RECOGNIZER`;
+        await fetchApi('/admin/recognizers', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: recName,
+            entityType: upper,
+            pattern: newCustomPattern.trim(),
+            score: newScore,
+            enabled: true,
+          }),
+        });
+      } catch (err: any) {
+        setStatusMessage({ text: `Failed to register custom recognizer: ${err.message}`, type: 'error' });
+        return;
+      }
+    }
+
+    const newRule: EntityPolicy = {
+      entityType: upper,
+      action: newAction,
+      minScore: newScore,
+      enabled: true,
+      description: newDesc.trim() || 'Custom entity protection rule.',
+    };
+
+    const updatedPolicies = [...policies, newRule];
+    setPolicies(updatedPolicies);
     setShowAddDrawer(false);
-    setStatusMessage({ text: `Entity rule "${upper}" staged. Click "Apply Changes" to save.`, type: 'success' });
-    setTimeout(() => setStatusMessage(null), 4000);
+
+    // Auto-save and apply immediately so it's fully active
+    try {
+      await fetchApi('/admin/policy', {
+        method: 'PUT',
+        body: JSON.stringify({ policies: updatedPolicies }),
+      });
+      setStatusMessage({ text: `Entity rule "${upper}" created and activated!`, type: 'success' });
+      loadData();
+      setTimeout(() => setStatusMessage(null), 4000);
+    } catch (err: any) {
+      setStatusMessage({ text: `Entity staged but failed to apply: ${err.message}`, type: 'error' });
+    }
   };
 
   const handleSave = async () => {
@@ -716,12 +786,13 @@ export function PolicyPage() {
         </div>
       </SlideOverDrawer>
 
-      {/* 3. RIGHT SLIDE-OVER DRAWER: Add Entity Rule with Source Selector and Dropdowns */}
+      {/* 3. RIGHT SLIDE-OVER DRAWER: Add Entity Rule (2 Sources with Integrated Regex Creator) */}
       <SlideOverDrawer
         isOpen={showAddDrawer}
         onClose={() => setShowAddDrawer(false)}
-        title="Add New Entity Action Rule"
-        subtitle="Select the entity source and define protection actions"
+        title="Add Entity Action Rule"
+        subtitle="Select an AI entity library or define custom pattern regex"
+        widthClass="max-w-xl"
         footer={
           <>
             <button
@@ -735,73 +806,57 @@ export function PolicyPage() {
               type="button"
               onClick={handleAddPolicy}
               disabled={!newEntity.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
             >
-              Stage Entity Rule
+              Save & Activate Rule
             </button>
           </>
         }
       >
         <form onSubmit={handleAddPolicy} className="space-y-5">
-          {/* 1. Source Selector Buttons */}
+          {/* 1. Two-Way Source Selector Tabs */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-2">1. Select Entity Source</label>
-            <div className="grid grid-cols-3 gap-2">
+            <label className="block text-xs font-semibold text-slate-300 mb-2">1. Choose Entity Detector Source</label>
+            <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => handleSourceChange('presidio')}
-                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition ${
+                className={`p-3 rounded-xl border text-left flex flex-col justify-between transition ${
                   entitySource === 'presidio'
                     ? 'bg-blue-600/15 border-blue-500 text-blue-300 ring-1 ring-blue-500/30'
                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
-                  <Wand2 className="w-3.5 h-3.5 text-blue-400" /> Presidio AI
+                  <Wand2 className="w-4 h-4 text-blue-400" /> Presidio AI Library
                 </div>
-                <span className="text-[10px] text-slate-500 leading-tight">Built-in NLP library</span>
+                <span className="text-[11px] text-slate-500 leading-tight">Built-in NLP language model</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleSourceChange('custom')}
-                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition ${
+                className={`p-3 rounded-xl border text-left flex flex-col justify-between transition ${
                   entitySource === 'custom'
                     ? 'bg-indigo-600/15 border-indigo-500 text-indigo-300 ring-1 ring-indigo-500/30'
                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
-                  <Code className="w-3.5 h-3.5 text-indigo-400" /> Custom
+                  <Code className="w-4 h-4 text-indigo-400" /> Custom Pattern Regex
                 </div>
-                <span className="text-[10px] text-slate-500 leading-tight">Your regex patterns</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSourceChange('manual')}
-                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition ${
-                  entitySource === 'manual'
-                    ? 'bg-purple-600/15 border-purple-500 text-purple-300 ring-1 ring-purple-500/30'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
-                  <Edit3 className="w-3.5 h-3.5 text-purple-400" /> Manual
-                </div>
-                <span className="text-[10px] text-slate-500 leading-tight">Type custom ID</span>
+                <span className="text-[11px] text-slate-500 leading-tight">Existing or new pattern matcher</span>
               </button>
             </div>
           </div>
 
-          {/* 2. Dropdown or Input based on source */}
+          {/* 2. Source Configuration */}
           <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-            <label className="block text-xs font-semibold text-slate-300">
-              2. Target Entity Type
-            </label>
-
-            {entitySource === 'presidio' && (
+            {entitySource === 'presidio' ? (
               <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-300">
+                  2. Select Presidio AI Entity Type
+                </label>
                 <select
                   value={newEntity}
                   onChange={(e) => handlePresidioEntitySelect(e.target.value)}
@@ -809,7 +864,7 @@ export function PolicyPage() {
                 >
                   {STANDARD_PRESIDIO_ENTITIES.map((ent) => (
                     <option key={ent.id} value={ent.id}>
-                      {ent.name} — {ent.desc.slice(0, 45)}...
+                      {ent.name} — {ent.desc.slice(0, 48)}...
                     </option>
                   ))}
                 </select>
@@ -817,12 +872,53 @@ export function PolicyPage() {
                   {newDesc}
                 </p>
               </div>
-            )}
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-300">2. Custom Pattern Option</label>
+                  {customRecognizers.length > 0 && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomMode('existing');
+                          const first = customRecognizers[0];
+                          if (first) {
+                            setNewEntity(first.entityType);
+                            setNewDesc(`Custom pattern rule "${first.name}"`);
+                          }
+                        }}
+                        className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition ${
+                          customMode === 'existing'
+                            ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50'
+                            : 'bg-slate-900 text-slate-400 border-slate-800'
+                        }`}
+                      >
+                        Choose Existing
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomMode('new');
+                          setNewEntity('NIK_KTP');
+                          setNewCustomRecName('KTP_Indonesia');
+                          setNewCustomPattern('\\b\\d{16}\\b');
+                          setNewDesc('Indonesian 16-digit national ID');
+                        }}
+                        className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition ${
+                          customMode === 'new'
+                            ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50'
+                            : 'bg-slate-900 text-slate-400 border-slate-800'
+                        }`}
+                      >
+                        + Create New Regex
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-            {entitySource === 'custom' && (
-              <div className="space-y-2">
-                {customRecognizers.length > 0 ? (
-                  <>
+                {customMode === 'existing' && customRecognizers.length > 0 ? (
+                  <div className="space-y-2">
                     <select
                       value={newEntity}
                       onChange={(e) => handleCustomEntitySelect(e.target.value)}
@@ -830,38 +926,85 @@ export function PolicyPage() {
                     >
                       {customRecognizers.map((rec) => (
                         <option key={rec.id || rec.name} value={rec.entityType}>
-                          {rec.entityType} ({rec.name})
+                          {rec.entityType} ({rec.name}) — Pattern: {rec.pattern}
                         </option>
                       ))}
                     </select>
                     <p className="text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-850">
                       {newDesc}
                     </p>
-                  </>
+                  </div>
                 ) : (
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-400 text-center space-y-1">
-                    <p>No custom recognizers created yet.</p>
-                    <p className="text-[11px] text-indigo-400">
-                      Create one in the <strong>Custom Recognizers</strong> tab or choose <strong>Presidio</strong> / <strong>Manual</strong>.
-                    </p>
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                        Entity Type Name <span className="text-slate-500">(UPPERCASE Identifier)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. NIK_KTP or PROJECT_CODE"
+                        value={newEntity}
+                        onChange={(e) => setNewEntity(e.target.value.toUpperCase().replace(/\s+/g, '_'))}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                        Recognizer Display Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Indonesian KTP Number"
+                        value={newCustomRecName}
+                        onChange={(e) => setNewCustomRecName(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                        Regex Pattern (How the proxy detects this text)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. \\b\\d{16}\\b"
+                        value={newCustomPattern}
+                        onChange={(e) => setNewCustomPattern(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500"
+                        required
+                      />
+                    </div>
+
+                    {/* Instant Live Match Box */}
+                    <div className="p-3 bg-slate-900/80 border border-slate-850 rounded-xl space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span className="flex items-center gap-1 font-semibold text-slate-300">
+                          <Play className="w-3 h-3 text-emerald-400" /> Live Pattern Test
+                        </span>
+                        <span>Matches: <strong className="text-emerald-400 font-mono">{liveRegexMatches.length}</strong></span>
+                      </div>
+                      <input
+                        type="text"
+                        value={newCustomTestText}
+                        onChange={(e) => setNewCustomTestText(e.target.value)}
+                        placeholder="Type test sample here..."
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none"
+                      />
+                      {liveRegexMatches.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {liveRegexMatches.map((m, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-mono">
+                              {m}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {entitySource === 'manual' && (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="e.g. NIK_KTP, EMPLOYEE_ID, PROJ_CODE"
-                  value={newEntity}
-                  onChange={(e) => setNewEntity(e.target.value.toUpperCase().replace(/\s+/g, '_'))}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-purple-300 font-mono focus:outline-none focus:border-purple-500"
-                  required
-                />
-                <p className="text-[11px] text-slate-500">
-                  Enter an UPPERCASE label identifier that matches the output of a pattern matcher.
-                </p>
               </div>
             )}
           </div>
@@ -899,7 +1042,7 @@ export function PolicyPage() {
 
           {/* 5. Description Textarea */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Description (Optional)</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">5. Description (Optional)</label>
             <textarea
               rows={2}
               placeholder="Detailed explanation of what this entity rule identifies..."
