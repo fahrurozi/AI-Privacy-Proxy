@@ -76,51 +76,83 @@ export function GuideModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =
       ),
     },
     {
-      title: '2. Cara Kerja Tokenization (Reversible Privacy)',
+      title: '2. Cara Kerja Tokenization Multi-Entitas & Multi-Kategori',
       badge: 'Core Workflow',
       badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-      subtitle: 'Bagaimana data disembunyikan dari AI tetapi tetap utuh di mata pengguna',
+      subtitle: 'Skenario nyata dengan >1 Nama, >1 Email berbeda, Dompet Kripto, dan penyebutan ulang',
       content: (
         <div className="space-y-4 text-xs text-slate-300 leading-relaxed">
-          {/* Step-by-step Visual Diagram */}
-          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 font-mono">
-            <div className="text-[11px] text-slate-400 font-sans font-semibold uppercase tracking-wider mb-1">
-              Alur Perjalanan Data (End-to-End)
+          {/* Step 1: Incoming Complex Prompt */}
+          <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-slate-200">1. Prompt Asli dari Klien / IDE (Mengandung Banyak PII):</span>
+              <span className="text-blue-400 font-mono text-[10px]">Client Input</span>
             </div>
-
-            <div className="flex flex-col gap-2">
-              {/* Step 1 */}
-              <div className="p-2.5 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between">
-                <span className="text-slate-400">1. Klien / IDE / App</span>
-                <span className="text-blue-300 font-sans">"Kirim email ke <strong>satoshi@bitcoin.org</strong>"</span>
-              </div>
-              <div className="text-center text-slate-600">↓ (Masuk ke Privacy Proxy)</div>
-
-              {/* Step 2 */}
-              <div className="p-2.5 bg-blue-950/40 border border-blue-800/60 rounded-lg flex items-center justify-between">
-                <span className="text-blue-300 font-semibold">2. Presidio NLP & Vault</span>
-                <span className="text-yellow-300">"satoshi@bitcoin.org" ➔ <code className="text-blue-400">[PREFIX:EMAIL_001]</code></span>
-              </div>
-              <div className="text-center text-slate-600">↓ (Hanya Token yang dikirim ke Upstream Cloud)</div>
-
-              {/* Step 3 */}
-              <div className="p-2.5 bg-purple-950/30 border border-purple-800/50 rounded-lg flex items-center justify-between">
-                <span className="text-purple-300">3. Upstream AI (OpenAI/Anthropic)</span>
-                <span className="text-purple-200">Menjawab: "Saya sudah siapkan draf untuk <code className="text-purple-300">[PREFIX:EMAIL_001]</code>"</span>
-              </div>
-              <div className="text-center text-slate-600">↓ (Streaming Interceptor mengembalikan data asli)</div>
-
-              {/* Step 4 */}
-              <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/60 rounded-lg flex items-center justify-between">
-                <span className="text-emerald-300 font-semibold">4. Diterima Pengguna</span>
-                <span className="text-emerald-200 font-sans">"Saya sudah siapkan draf untuk <strong>satoshi@bitcoin.org</strong>"</span>
-              </div>
+            <div className="p-3 bg-slate-900 border border-slate-850 rounded-lg text-slate-200 font-mono text-[11px] leading-relaxed">
+              "Buatkan invoice untuk <span className="text-emerald-400 bg-emerald-950/60 px-1 py-0.5 rounded">Alice Walker</span> (<span className="text-blue-400 bg-blue-950/60 px-1 py-0.5 rounded">alice@techcorp.com</span>) dan partnernya <span className="text-teal-400 bg-teal-950/60 px-1 py-0.5 rounded">Bob Smith</span> (<span className="text-indigo-400 bg-indigo-950/60 px-1 py-0.5 rounded">bob@partner.org</span>). Transfer 2.5 ETH ke <span className="text-purple-400 bg-purple-950/60 px-1 py-0.5 rounded">0x71C8F794B32145429631994304244a1234567890</span> lalu kirim salinan lagi ke <span className="text-blue-400 bg-blue-950/60 px-1 py-0.5 rounded">alice@techcorp.com</span>."
             </div>
           </div>
 
-          <p className="text-slate-400">
-            💡 <strong>Keuntungan:</strong> Model AI upstream sama sekali <em>tidak pernah melihat</em> email atau data asli, namun konteks kalimat tetap berjalan normal!
-          </p>
+          {/* Step 2: Detection & Token Mapping Table */}
+          <div className="p-3.5 bg-slate-950 border border-blue-900/40 rounded-xl space-y-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-blue-300">2. Presidio NLP & Token Vault Mapping:</span>
+              <span className="text-blue-400 font-mono text-[10px]">Tokenization Mapping</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px]">
+              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between">
+                <span className="text-slate-400">Alice Walker</span>
+                <span className="text-emerald-400 font-semibold">➔ [PREFIX:PERSON_001]</span>
+              </div>
+              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between">
+                <span className="text-slate-400">Bob Smith</span>
+                <span className="text-teal-400 font-semibold">➔ [PREFIX:PERSON_002]</span>
+              </div>
+              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between">
+                <span className="text-slate-400">alice@techcorp.com</span>
+                <span className="text-blue-400 font-semibold">➔ [PREFIX:EMAIL_001]</span>
+              </div>
+              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between">
+                <span className="text-slate-400">bob@partner.org</span>
+                <span className="text-indigo-400 font-semibold">➔ [PREFIX:EMAIL_002]</span>
+              </div>
+              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between sm:col-span-2">
+                <span className="text-slate-400 truncate max-w-[180px]">0x71C8F794...7890</span>
+                <span className="text-purple-400 font-semibold">➔ [PREFIX:ETHEREUM_ADDRESS_001]</span>
+              </div>
+            </div>
+            <p className="text-[11px] text-amber-300/90 bg-amber-950/30 p-2 rounded border border-amber-900/40">
+              💡 <strong>Deduplikasi Cerdas:</strong> Karena <code className="text-blue-300">alice@techcorp.com</code> disebut 2 kali, proxy otomatis memberikan token yang <strong>sama persis (<code className="text-blue-300">[PREFIX:EMAIL_001]</code>)</strong> sehingga AI memahami bahwa orangnya sama!
+            </p>
+          </div>
+
+          {/* Step 3: Upstream Cloud AI Response */}
+          <div className="p-3.5 bg-slate-950 border border-purple-900/40 rounded-xl space-y-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-purple-300">3. Yang Diterima & Dijawab oleh AI Upstream (Cloud):</span>
+              <span className="text-purple-400 font-mono text-[10px]">Cloud AI Response</span>
+            </div>
+            <div className="p-3 bg-slate-900 border border-slate-850 rounded-lg text-purple-200 font-mono text-[11px] leading-relaxed">
+              "Invoice draf telah dibuat untuk <span className="text-emerald-400">[PREFIX:PERSON_001]</span> dan <span className="text-teal-400">[PREFIX:PERSON_002]</span>. Konfirmasi pembayaran dikirim ke <span className="text-blue-400">[PREFIX:EMAIL_001]</span> dan <span className="text-indigo-400">[PREFIX:EMAIL_002]</span>, dengan instruksi transfer 2.5 ETH ke dompet <span className="text-purple-400">[PREFIX:ETHEREUM_ADDRESS_001]</span>."
+            </div>
+          </div>
+
+          {/* Step 4: Final Reconstructed Response */}
+          <div className="p-3.5 bg-slate-950 border border-emerald-900/50 rounded-xl space-y-2 shadow-lg shadow-emerald-950/20">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-emerald-300">4. Yang Diterima Klien Pengguna (Data Asli Dikembalikan Sempurna):</span>
+              <span className="text-emerald-400 font-mono text-[10px]">Stream Detokenized</span>
+            </div>
+            <div className="p-3 bg-slate-900 border border-slate-850 rounded-lg text-emerald-100 font-mono text-[11px] leading-relaxed">
+              "Invoice draf telah dibuat untuk <strong className="text-emerald-300">Alice Walker</strong> dan <strong className="text-teal-300">Bob Smith</strong>. Konfirmasi pembayaran dikirim ke <strong className="text-blue-300">alice@techcorp.com</strong> dan <strong className="text-indigo-300">bob@partner.org</strong>, dengan instruksi transfer 2.5 ETH ke dompet <strong className="text-purple-300">0x71C8F794B32145429631994304244a1234567890</strong>."
+            </div>
+          </div>
+
+          <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl text-slate-400 text-[11px] space-y-1">
+            <p>
+              🔒 <strong>Kesimpulan:</strong> Model AI upstream (OpenAI/Anthropic) <strong>tidak pernah melihat satupun nama asli, email asli, ataupun alamat crypto asli</strong>, namun jawaban AI tetap 100% presisi dan tidak ada data yang tertukar!
+            </p>
+          </div>
         </div>
       ),
     },
