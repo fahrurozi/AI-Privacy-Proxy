@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { EntityPolicy, PrivacyAction } from '@ai-privacy-proxy/shared';
+import { EntityPolicy, PrivacyAction, CustomRecognizerConfig } from '@ai-privacy-proxy/shared';
 import { fetchApi } from '../lib/api.js';
 import { SlideOverDrawer } from '../components/SlideOverDrawer.js';
 import {
@@ -16,13 +16,33 @@ import {
   ToggleRight,
   FlaskConical,
   RefreshCw,
-  Copy,
-  Check,
   ShieldAlert,
-  ArrowRight,
+  Layers,
+  Wand2,
+  Code,
+  Edit3,
 } from 'lucide-react';
 
 const ACTIONS: PrivacyAction[] = ['TOKENIZE', 'REDACT', 'BLOCK', 'PASS'];
+
+const STANDARD_PRESIDIO_ENTITIES: Array<{ id: string; name: string; desc: string }> = [
+  { id: 'LOCATION', name: 'LOCATION', desc: 'Geographical places, cities, countries, and physical addresses' },
+  { id: 'DATE_TIME', name: 'DATE_TIME', desc: 'Absolute dates, times, and calendar timestamps' },
+  { id: 'IBAN_CODE', name: 'IBAN_CODE', desc: 'International Bank Account Numbers (IBAN)' },
+  { id: 'SWIFT_CODE', name: 'SWIFT_CODE', desc: 'Bank BIC / SWIFT routing identification codes' },
+  { id: 'MEDICAL_LICENSE', name: 'MEDICAL_LICENSE', desc: 'Healthcare practitioner and physician license numbers' },
+  { id: 'US_DRIVER_LICENSE', name: 'US_DRIVER_LICENSE', desc: 'Driver license identification numbers' },
+  { id: 'TAX_ID', name: 'TAX_ID', desc: 'National Tax Identification Numbers (TIN / NPWP)' },
+  { id: 'ORGANIZATION', name: 'ORGANIZATION', desc: 'Company, corporation, agency, and institution names' },
+  { id: 'URL', name: 'URL', desc: 'Web addresses, endpoint links, and domains' },
+  { id: 'US_BANK_NUMBER', name: 'US_BANK_NUMBER', desc: 'Bank account and routing numbers' },
+  { id: 'US_ITIN', name: 'US_ITIN', desc: 'Individual Taxpayer Identification Number' },
+  { id: 'SG_NRIC_FIN', name: 'SG_NRIC_FIN', desc: 'Singapore National Registration ID (NRIC/FIN)' },
+  { id: 'IN_PAN', name: 'IN_PAN', desc: 'India Permanent Account Number (PAN)' },
+  { id: 'IN_AADHAAR', name: 'IN_AADHAAR', desc: 'India 12-digit Aadhaar UID number' },
+  { id: 'UK_NHS', name: 'UK_NHS', desc: 'UK National Health Service identity number' },
+  { id: 'AU_MEDICARE', name: 'AU_MEDICARE', desc: 'Australia Medicare identity number' },
+];
 
 const SAMPLE_DATA: Record<string, string> = {
   EMAIL_ADDRESS: 'Please reach out to satoshi.nakamoto@bitcoin.org or ceo@anthropic.com regarding the proposal.',
@@ -38,6 +58,8 @@ const SAMPLE_DATA: Record<string, string> = {
   SEED_PHRASE: 'seed phrase: apple banana cherry dog elephant fox grape horse igloo jaguar kangaroo lemon',
   US_SSN: 'Citizen identifier record SSN 000-12-3456.',
   US_PASSPORT: 'Passport verification document A12345678.',
+  LOCATION: 'Server deployment in Jakarta, Singapore, and New York data centers.',
+  DATE_TIME: 'System scheduled maintenance on August 25, 2026 at 14:30 UTC.',
 };
 
 // Client-side regex simulation helpers for instant playground evaluation
@@ -67,6 +89,7 @@ function simulatePolicyTransformation(
     PRIVATE_KEY: /\b(?:0x)?[a-fA-F0-9]{64}\b/g,
     PERSON: /\b(?:Alice Walker|Robert Downey|John Doe|Jane Smith|Satoshi Nakamoto|Dr\. Johnson)\b/g,
     US_SSN: /\b\d{3}-\d{2}-\d{4}\b/g,
+    LOCATION: /\b(?:Jakarta|Singapore|New York|London|Tokyo|California)\b/g,
   };
 
   const policyMap = new Map(policies.map((p) => [p.entityType.toUpperCase(), p]));
@@ -109,6 +132,7 @@ function simulatePolicyTransformation(
 
 export function PolicyPage() {
   const [policies, setPolicies] = useState<EntityPolicy[]>([]);
+  const [customRecognizers, setCustomRecognizers] = useState<CustomRecognizerConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -125,16 +149,21 @@ export function PolicyPage() {
 
   // Add Entity Drawer State
   const [showAddDrawer, setShowAddDrawer] = useState(false);
-  const [newEntity, setNewEntity] = useState('');
+  const [entitySource, setEntitySource] = useState<'presidio' | 'custom' | 'manual'>('presidio');
+  const [newEntity, setNewEntity] = useState('LOCATION');
   const [newAction, setNewAction] = useState<PrivacyAction>('TOKENIZE');
   const [newScore, setNewScore] = useState(0.75);
-  const [newDesc, setNewDesc] = useState('');
+  const [newDesc, setNewDesc] = useState(STANDARD_PRESIDIO_ENTITIES[0]?.desc || '');
 
-  const loadPolicies = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const data = await fetchApi<{ policies: EntityPolicy[] }>('/admin/policy');
-      setPolicies(data.policies);
+      const [policyData, recData] = await Promise.all([
+        fetchApi<{ policies: EntityPolicy[] }>('/admin/policy'),
+        fetchApi<{ custom: CustomRecognizerConfig[] }>('/admin/recognizers').catch(() => ({ custom: [] })),
+      ]);
+      setPolicies(policyData.policies);
+      setCustomRecognizers(recData.custom || []);
     } catch (err: any) {
       setStatusMessage({ text: `Failed to load policies: ${err.message}`, type: 'error' });
     } finally {
@@ -143,7 +172,7 @@ export function PolicyPage() {
   };
 
   useEffect(() => {
-    loadPolicies();
+    loadData();
   }, []);
 
   const handleActionChange = (entityType: string, action: PrivacyAction) => {
@@ -170,12 +199,52 @@ export function PolicyPage() {
     setPolicies((prev) => prev.filter((p) => p.entityType !== entityType));
   };
 
+  const handleSourceChange = (source: 'presidio' | 'custom' | 'manual') => {
+    setEntitySource(source);
+    if (source === 'presidio') {
+      const first = STANDARD_PRESIDIO_ENTITIES[0];
+      if (first) {
+        setNewEntity(first.name);
+        setNewDesc(first.desc);
+      }
+    } else if (source === 'custom') {
+      if (customRecognizers.length > 0 && customRecognizers[0]) {
+        setNewEntity(customRecognizers[0].entityType);
+        setNewDesc(`Pattern recognizer for custom entity ${customRecognizers[0].name}`);
+      } else {
+        setNewEntity('');
+        setNewDesc('');
+      }
+    } else {
+      setNewEntity('');
+      setNewDesc('');
+    }
+  };
+
+  const handlePresidioEntitySelect = (entityId: string) => {
+    const found = STANDARD_PRESIDIO_ENTITIES.find((p) => p.id === entityId);
+    if (found) {
+      setNewEntity(found.name);
+      setNewDesc(found.desc);
+    }
+  };
+
+  const handleCustomEntitySelect = (entityTypeVal: string) => {
+    const found = customRecognizers.find((c) => c.entityType === entityTypeVal);
+    if (found) {
+      setNewEntity(found.entityType);
+      setNewDesc(`Custom pattern rule "${found.name}" (${found.pattern})`);
+    } else {
+      setNewEntity(entityTypeVal);
+    }
+  };
+
   const handleAddPolicy = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEntity.trim()) return;
     const upper = newEntity.trim().toUpperCase().replace(/\s+/g, '_');
     if (policies.some((p) => p.entityType === upper)) {
-      setStatusMessage({ text: `Entity rule for ${upper} already exists.`, type: 'error' });
+      setStatusMessage({ text: `Entity rule for ${upper} already exists in your policy table.`, type: 'error' });
       return;
     }
     setPolicies((prev) => [
@@ -188,8 +257,6 @@ export function PolicyPage() {
         description: newDesc.trim() || 'Custom user-defined entity rule.',
       },
     ]);
-    setNewEntity('');
-    setNewDesc('');
     setShowAddDrawer(false);
     setStatusMessage({ text: `Entity rule "${upper}" staged. Click "Apply Changes" to save.`, type: 'success' });
     setTimeout(() => setStatusMessage(null), 4000);
@@ -214,7 +281,7 @@ export function PolicyPage() {
   // When opening a detail drawer, set default sample text
   const openDetailDrawer = (policy: EntityPolicy) => {
     setSelectedPolicyForDetail(policy);
-    setDetailTestInput(SAMPLE_DATA[policy.entityType] || `Sample testing text for ${policy.entityType}.`);
+    setDetailTestInput(SAMPLE_DATA[policy.entityType] || `Sample testing prompt containing sensitive ${policy.entityType}.`);
   };
 
   // Evaluation for Single-Entity Detail Playground
@@ -269,7 +336,10 @@ export function PolicyPage() {
           </button>
 
           <button
-            onClick={() => setShowAddDrawer(true)}
+            onClick={() => {
+              handleSourceChange('presidio');
+              setShowAddDrawer(true);
+            }}
             className="flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition"
           >
             <Plus className="w-4 h-4" /> Add Entity Rule
@@ -573,7 +643,7 @@ export function PolicyPage() {
                 type="button"
                 onClick={() =>
                   setGlobalTestInput(
-                    'Customer John Doe (john.doe@gmail.com) paid with Visa card 4532-1234-5678-9010 on cluster 10.0.0.1.'
+                    'Customer John Doe (john.doe@gmail.com) paid with Visa card 4532-1234-5678-9010 on cluster 10.0.0.1 in Jakarta.'
                   )
                 }
                 className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition"
@@ -646,12 +716,12 @@ export function PolicyPage() {
         </div>
       </SlideOverDrawer>
 
-      {/* 3. RIGHT SLIDE-OVER DRAWER: Add Entity Rule */}
+      {/* 3. RIGHT SLIDE-OVER DRAWER: Add Entity Rule with Source Selector and Dropdowns */}
       <SlideOverDrawer
         isOpen={showAddDrawer}
         onClose={() => setShowAddDrawer(false)}
         title="Add New Entity Action Rule"
-        subtitle="Define privacy actions for custom PII or domain-specific entities"
+        subtitle="Select the entity source and define protection actions"
         footer={
           <>
             <button
@@ -664,69 +734,145 @@ export function PolicyPage() {
             <button
               type="button"
               onClick={handleAddPolicy}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition"
+              disabled={!newEntity.trim()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50"
             >
               Stage Entity Rule
             </button>
           </>
         }
       >
-        <form onSubmit={handleAddPolicy} className="space-y-4">
-          {/* Quick Presets */}
+        <form onSubmit={handleAddPolicy} className="space-y-5">
+          {/* 1. Source Selector Buttons */}
           <div>
-            <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 block mb-2">
-              Common Presidio & Domain Presets
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { name: 'LOCATION', desc: 'Geographical locations, cities, and physical addresses' },
-                { name: 'DATE_TIME', desc: 'Absolute dates, times, and timestamps' },
-                { name: 'IBAN_CODE', desc: 'International Bank Account Numbers' },
-                { name: 'SWIFT_CODE', desc: 'Bank BIC / SWIFT routing codes' },
-                { name: 'MEDICAL_LICENSE', desc: 'Healthcare practitioner identifiers' },
-                { name: 'US_DRIVER_LICENSE', desc: 'US State Driver license numbers' },
-                { name: 'TAX_ID', desc: 'National tax identifier / TIN' },
-                { name: 'NIK_KTP', desc: 'Indonesian 16-digit national ID' },
-              ].map((preset) => (
-                <button
-                  key={preset.name}
-                  type="button"
-                  onClick={() => {
-                    setNewEntity(preset.name);
-                    if (!newDesc) setNewDesc(preset.desc);
-                  }}
-                  className="px-2.5 py-1 text-[11px] font-mono bg-slate-950 hover:bg-slate-800 text-blue-300 rounded-lg border border-slate-800 transition"
-                  title={preset.desc}
-                >
-                  +{preset.name}
-                </button>
-              ))}
+            <label className="block text-xs font-semibold text-slate-300 mb-2">1. Select Entity Source</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => handleSourceChange('presidio')}
+                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition ${
+                  entitySource === 'presidio'
+                    ? 'bg-blue-600/15 border-blue-500 text-blue-300 ring-1 ring-blue-500/30'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
+                  <Wand2 className="w-3.5 h-3.5 text-blue-400" /> Presidio AI
+                </div>
+                <span className="text-[10px] text-slate-500 leading-tight">Built-in NLP library</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSourceChange('custom')}
+                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition ${
+                  entitySource === 'custom'
+                    ? 'bg-indigo-600/15 border-indigo-500 text-indigo-300 ring-1 ring-indigo-500/30'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
+                  <Code className="w-3.5 h-3.5 text-indigo-400" /> Custom
+                </div>
+                <span className="text-[10px] text-slate-500 leading-tight">Your regex patterns</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSourceChange('manual')}
+                className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition ${
+                  entitySource === 'manual'
+                    ? 'bg-purple-600/15 border-purple-500 text-purple-300 ring-1 ring-purple-500/30'
+                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
+                  <Edit3 className="w-3.5 h-3.5 text-purple-400" /> Manual
+                </div>
+                <span className="text-[10px] text-slate-500 leading-tight">Type custom ID</span>
+              </button>
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Entity Type <span className="text-slate-500 font-normal font-sans">(UPPERCASE Identifier)</span>
+          {/* 2. Dropdown or Input based on source */}
+          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+            <label className="block text-xs font-semibold text-slate-300">
+              2. Target Entity Type
             </label>
-            <input
-              type="text"
-              placeholder="e.g. LOCATION, IBAN_CODE, NIK_KTP"
-              value={newEntity}
-              onChange={(e) => setNewEntity(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
-              required
-            />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Must match an entity detected by Presidio (e.g. <code className="text-slate-400">LOCATION</code>) or a custom entity from <strong className="text-slate-400">Custom Recognizers</strong>.
-            </p>
+
+            {entitySource === 'presidio' && (
+              <div className="space-y-2">
+                <select
+                  value={newEntity}
+                  onChange={(e) => handlePresidioEntitySelect(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-blue-300 font-mono focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  {STANDARD_PRESIDIO_ENTITIES.map((ent) => (
+                    <option key={ent.id} value={ent.id}>
+                      {ent.name} — {ent.desc.slice(0, 45)}...
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 leading-relaxed bg-slate-900/60 p-2.5 rounded-lg border border-slate-850">
+                  {newDesc}
+                </p>
+              </div>
+            )}
+
+            {entitySource === 'custom' && (
+              <div className="space-y-2">
+                {customRecognizers.length > 0 ? (
+                  <>
+                    <select
+                      value={newEntity}
+                      onChange={(e) => handleCustomEntitySelect(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500 cursor-pointer"
+                    >
+                      {customRecognizers.map((rec) => (
+                        <option key={rec.id || rec.name} value={rec.entityType}>
+                          {rec.entityType} ({rec.name})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-850">
+                      {newDesc}
+                    </p>
+                  </>
+                ) : (
+                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-400 text-center space-y-1">
+                    <p>No custom recognizers created yet.</p>
+                    <p className="text-[11px] text-indigo-400">
+                      Create one in the <strong>Custom Recognizers</strong> tab or choose <strong>Presidio</strong> / <strong>Manual</strong>.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {entitySource === 'manual' && (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="e.g. NIK_KTP, EMPLOYEE_ID, PROJ_CODE"
+                  value={newEntity}
+                  onChange={(e) => setNewEntity(e.target.value.toUpperCase().replace(/\s+/g, '_'))}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-purple-300 font-mono focus:outline-none focus:border-purple-500"
+                  required
+                />
+                <p className="text-[11px] text-slate-500">
+                  Enter an UPPERCASE label identifier that matches the output of a pattern matcher.
+                </p>
+              </div>
+            )}
           </div>
 
+          {/* 3. Action Selection */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Privacy Action</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">3. Protection Action</label>
             <select
               value={newAction}
               onChange={(e) => setNewAction(e.target.value as PrivacyAction)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
             >
               {ACTIONS.map((act) => (
                 <option key={act} value={act}>{act}</option>
@@ -734,10 +880,11 @@ export function PolicyPage() {
             </select>
           </div>
 
+          {/* 4. Confidence Threshold Slider */}
           <div>
-            <div className="flex items-center justify-between text-xs font-medium text-slate-300 mb-1.5">
-              <span>Confidence Threshold</span>
-              <span className="font-mono text-blue-400 font-semibold">{((newScore) * 100).toFixed(0)}%</span>
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1.5">
+              <span>4. Confidence Threshold</span>
+              <span className="font-mono text-blue-400 font-bold">{((newScore) * 100).toFixed(0)}%</span>
             </div>
             <input
               type="range"
@@ -750,11 +897,12 @@ export function PolicyPage() {
             />
           </div>
 
+          {/* 5. Description Textarea */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Description (Optional)</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">Description (Optional)</label>
             <textarea
-              rows={3}
-              placeholder="Detailed explanation of what this entity identifies..."
+              rows={2}
+              placeholder="Detailed explanation of what this entity rule identifies..."
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
