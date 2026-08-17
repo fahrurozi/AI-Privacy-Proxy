@@ -73,7 +73,7 @@ export class RedisTokenVault implements TokenVault {
         return false;
       }
     }
-    return true; // memory fallback is alive
+    return true;
   }
 
   async getOrCreate(sessionId: string, entityType: string, value: string): Promise<string> {
@@ -104,12 +104,9 @@ export class RedisTokenVault implements TokenVault {
           .exec();
 
         return token;
-      } catch (err) {
-        // Fall back to memory store on redis failure
-      }
+      } catch (err) {}
     }
 
-    // In-memory fallback
     const now = Date.now();
     const exp = now + ttl * 1000;
     const memLookup = this.memoryLookup.get(lookupKey);
@@ -142,9 +139,7 @@ export class RedisTokenVault implements TokenVault {
       try {
         const val = await this.redis.get(tokenKey);
         if (val !== null) return val;
-      } catch {
-        // Fall back to memory store
-      }
+      } catch {}
     }
 
     const now = Date.now();
@@ -181,9 +176,7 @@ export class RedisTokenVault implements TokenVault {
           });
         }
         return sessions;
-      } catch {
-        // Fall back to memory
-      }
+      } catch {}
     }
 
     for (const [sid, data] of this.memorySessions.entries()) {
@@ -211,9 +204,7 @@ export class RedisTokenVault implements TokenVault {
         await this.redis.del(`privacy:v1:sessions:meta:${sessionId}`);
         await this.redis.srem('privacy:v1:active_sessions', sessionId);
         return true;
-      } catch {
-        // Fall back to memory
-      }
+      } catch {}
     }
 
     this.memorySessions.delete(sessionId);

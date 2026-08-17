@@ -14,14 +14,12 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
   const startTime = Date.now();
   const requestId = randomUUID();
 
-  // 1. Process and sanitize incoming request
   const processed = await processIncomingRequest(
     path,
     req.headers,
     req.body as any,
   );
 
-  // 2. If content is blocked per privacy policy
   if (processed.blocked) {
     metricsTracker.recordRequest({
       requestId,
@@ -45,7 +43,6 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
     });
   }
 
-  // 3. Forward sanitized request to upstream
   try {
     const upstreamResponse = await forwardUpstreamRequest(
       path,
@@ -58,7 +55,6 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
     const contentType = (upstreamResponse.headers['content-type'] as string) || '';
     const isEventStream = contentType.includes('text/event-stream');
 
-    // Forward relevant response headers
     for (const [key, value] of Object.entries(upstreamResponse.headers)) {
       if (
         value !== undefined &&
@@ -70,7 +66,6 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
 
     const adapter = detectProtocol(path, req.headers, null);
 
-    // 4. Handle Streaming Response
     if (isEventStream) {
       reply.status(upstreamStatus);
       reply.header('Content-Type', 'text/event-stream');
@@ -100,7 +95,6 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       return reply.send(transformedStream);
     }
 
-    // 5. Handle Non-Streaming Response
     const rawText = await upstreamResponse.body.text();
     const detokenizedBody = await processNonStreamingResponse(
       rawText,
@@ -147,7 +141,6 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
 }
 
 export async function proxyRoutes(fastify: FastifyInstance) {
-  // Fast-path standard LLM routes
   fastify.post('/v1/chat/completions', handleProxyRequest);
   fastify.post('/v1/messages', handleProxyRequest);
   fastify.post('/v1/completions', handleProxyRequest);

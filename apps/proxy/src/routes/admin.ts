@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { timingSafeEqual, createHash, randomBytes } from 'crypto';
+import { timingSafeEqual, createHash } from 'crypto';
 import {
   MetricsSummary,
   AuditEvent,
@@ -16,7 +16,6 @@ import { checkPresidioHealth, analyzeText } from '../presidio/client.js';
 import { maskValue } from '../privacy/tokenizer.js';
 import { streamStateManager } from '../streaming/stream-state.js';
 
-// In-memory metrics tracking
 export class AdminMetricsTracker {
   totalRequests = 0;
   blockedRequests = 0;
@@ -59,7 +58,6 @@ export class AdminMetricsTracker {
       if (this.proxyLatencies.length > 100) this.proxyLatencies.shift();
     }
 
-    // Add to audit log (capped at 500 entries)
     this.auditLogs.unshift({
       id: event.requestId,
       timestamp: Date.now(),
@@ -116,8 +114,6 @@ export class AdminMetricsTracker {
 
 export const metricsTracker = new AdminMetricsTracker();
 const localCustomRecognizers: Map<string, CustomRecognizerConfig> = new Map();
-
-// In-memory rate limiting map for login attempts (SEC-005 mitigation)
 const loginAttemptMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkLoginRateLimit(ip: string): boolean {
@@ -128,15 +124,12 @@ function checkLoginRateLimit(ip: string): boolean {
     return true;
   }
   if (record.count >= 10) {
-    return false; // Rate limit exceeded (10 attempts per minute per IP)
+    return false;
   }
   record.count += 1;
   return true;
 }
 
-/**
- * Constant-time string comparison to prevent timing attacks (SEC-003 mitigation)
- */
 export function constantTimeEquals(a?: string | null, b?: string | null): boolean {
   if (!a || !b) return false;
   const hashA = createHash('sha256').update(String(a)).digest();
@@ -162,7 +155,6 @@ function verifyAdminAuth(req: FastifyRequest, reply: FastifyReply): boolean {
 }
 
 export async function adminRoutes(fastify: FastifyInstance) {
-  // Authentication & Login Routes
   fastify.post('/admin/auth/login', async (req, reply) => {
     const clientIp = req.ip || '127.0.0.1';
     if (!checkLoginRateLimit(clientIp)) {
@@ -191,7 +183,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         username: 'admin',
         role: 'Administrator',
       },
-      expiresAt: Date.now() + 86400 * 1000 * 7, // 7 days
+      expiresAt: Date.now() + 86400 * 1000 * 7,
     });
   });
 
@@ -203,14 +195,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // Metrics Summary
   fastify.get('/admin/metrics', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     const summary = await metricsTracker.getSummary();
     return reply.send(summary);
   });
 
-  // Metrics Live Stream (SSE)
   fastify.get('/admin/metrics/stream', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
 
@@ -232,7 +222,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // Active Sessions
   fastify.get('/admin/sessions', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     const sessions = await vault.listSessions();
@@ -246,7 +235,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ success, sessionId: id });
   });
 
-  // Policy Settings
   fastify.get('/admin/policy', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     return reply.send({ policies: policyRegistry.getAllPolicies() });
@@ -265,7 +253,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ status: 'ok', policies: policyRegistry.getAllPolicies() });
   });
 
-  // Policy Sandbox & Live Simulation (Uses real Presidio spaCy NLP model!)
   fastify.post('/admin/policy/simulate', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     const body = req.body as { text?: string; policies?: EntityPolicy[] };
@@ -282,11 +269,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     }
 
     const { entities, latencyMs } = await analyzeText(text);
-
-    // Build policy lookup map
     const policyMap = new Map((body.policies || policyRegistry.getAllPolicies()).map((p) => [p.entityType.toUpperCase(), p]));
-
-    // Sort descending by start to avoid position drift during replacements
     const sorted = [...entities].sort((a, b) => b.start - a.start);
     let transformed = text;
     const detected: Array<{ entityType: string; matchedText: string; action: string; score: number }> = [];
@@ -327,7 +310,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // Recognizers
   fastify.get('/admin/recognizers', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     try {
@@ -374,13 +356,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ status: 'deleted', id });
   });
 
-  // Audit Logs
   fastify.get('/admin/audit', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     return reply.send({ events: metricsTracker.auditLogs });
   });
 
-  // Dynamic Upstream & System Settings (Multi-Provider, Privacy Mode, TTL)
   fastify.get('/admin/upstream', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     return reply.send(upstreamStore.getSettings());
@@ -407,7 +387,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // Provider CRUD
   fastify.post('/admin/providers', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     const provider = req.body as UpstreamProvider;
@@ -418,7 +397,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!isSafeUpstreamUrl(provider.baseUrl)) {
       return reply.status(400).send({
         error: 'unsafe_upstream_url',
-        message: 'The specified base URL is invalid or targets a disallowed internal address (SSRF protection).',
+        message: 'The specified base URL is invalid or targets a disallowed internal address.',
       });
     }
 
@@ -441,7 +420,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (!isSafeUpstreamUrl(provider.baseUrl)) {
       return reply.status(400).send({
         error: 'unsafe_upstream_url',
-        message: 'The specified base URL is invalid or targets a disallowed internal address (SSRF protection).',
+        message: 'The specified base URL is invalid or targets a disallowed internal address.',
       });
     }
 
