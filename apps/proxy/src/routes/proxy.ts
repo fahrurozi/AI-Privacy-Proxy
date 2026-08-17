@@ -141,8 +141,10 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
 }
 
 export async function proxyRoutes(fastify: FastifyInstance) {
-  fastify.post('/v1/chat/completions', handleProxyRequest);
-  fastify.post('/v1/messages', handleProxyRequest);
-  fastify.post('/v1/completions', handleProxyRequest);
-  fastify.get('/v1/models', handleProxyRequest);
+  fastify.all('/v1/*', handleProxyRequest);
+  fastify.all('/p/*', handleProxyRequest);
+  fastify.all('/provider/*', handleProxyRequest);
+  fastify.all('/api/*', handleProxyRequest);
+  fastify.all('/v1', handleProxyRequest);
+  fastify.all('/p', handleProxyRequest);
 }

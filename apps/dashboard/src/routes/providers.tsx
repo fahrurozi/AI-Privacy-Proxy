@@ -238,9 +238,12 @@ export function ProvidersPage() {
       return;
     }
 
-    const modelToUse = selectedModel === 'custom' ? customModelInput.trim() : (selectedModel || 'gpt-4o');
+    const modelToUse = (availableModels.length === 0 || selectedModel === 'custom')
+      ? customModelInput.trim()
+      : (selectedModel || customModelInput.trim() || 'gpt-4o');
+
     if (!modelToUse) {
-      setPlaygroundError('Please select or specify a model ID.');
+      setPlaygroundError('Please specify a model ID.');
       return;
     }
 
