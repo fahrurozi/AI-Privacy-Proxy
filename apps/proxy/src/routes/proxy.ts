@@ -120,6 +120,13 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       clientIp: req.ip,
     });
 
+    if (req.headers['x-privacy-debug'] === 'true') {
+      reply.header('x-privacy-sanitized-body', Buffer.from(processed.sanitizedBody || '').toString('base64'));
+      reply.header('x-privacy-raw-upstream-body', Buffer.from(rawText || '').toString('base64'));
+      reply.header('x-privacy-tokens-count', String(processed.tokensCreated.length));
+      reply.header('x-privacy-entities', JSON.stringify(processed.entitiesDetected));
+    }
+
     if (contentType.includes('application/json')) {
       reply.header('content-type', 'application/json; charset=utf-8');
       try {

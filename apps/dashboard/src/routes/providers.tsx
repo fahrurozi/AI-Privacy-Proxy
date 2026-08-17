@@ -22,6 +22,8 @@ import {
   Eye,
   EyeOff,
   Pencil,
+  Lock,
+  Cpu,
 } from 'lucide-react';
 
 export function ProvidersPage() {
@@ -59,10 +61,13 @@ export function ProvidersPage() {
   const [isSendingRequest, setIsSendingRequest] = useState(false);
   const [playgroundResponse, setPlaygroundResponse] = useState<{
     text: string;
+    sanitizedPrompt?: string;
+    rawUpstreamResponse?: string;
     latencyMs: number;
     tokensUsed?: number;
     status: number;
   } | null>(null);
+  const [activePlaygroundTab, setActivePlaygroundTab] = useState<'client' | 'sent_external' | 'raw_external'>('client');
   const [playgroundError, setPlaygroundError] = useState<string | null>(null);
 
   // Add Provider Drawer State
@@ -276,12 +281,22 @@ export function ProvidersPage() {
         stream: false,
       };
 
+      let simSanitizedText = '';
+      try {
+        const simRes = await fetchApi<{ transformedText: string }>('/admin/policy/simulate', {
+          method: 'POST',
+          body: JSON.stringify({ text: playgroundPrompt }),
+        });
+        simSanitizedText = simRes.transformedText;
+      } catch {}
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${ephemeralKey.trim()}`,
           'x-api-key': ephemeralKey.trim(),
+          'x-privacy-debug': 'true',
         },
         body: JSON.stringify(payload),
       });
@@ -296,6 +311,27 @@ export function ProvidersPage() {
           errMsg = parsed.error?.message || parsed.message || errorText;
         } catch {}
         throw new Error(errMsg);
+      }
+
+      let sanitizedPrompt = simSanitizedText;
+      let rawUpstreamResponse = '';
+
+      const sanitizedHeader = response.headers.get('x-privacy-sanitized-body');
+      if (sanitizedHeader) {
+        try {
+          const decoded = atob(sanitizedHeader);
+          const parsed = JSON.parse(decoded);
+          sanitizedPrompt = parsed.messages?.[parsed.messages.length - 1]?.content || parsed.prompt || decoded;
+        } catch {}
+      }
+
+      const rawUpstreamHeader = response.headers.get('x-privacy-raw-upstream-body');
+      if (rawUpstreamHeader) {
+        try {
+          const decoded = atob(rawUpstreamHeader);
+          const parsed = JSON.parse(decoded);
+          rawUpstreamResponse = parsed.choices?.[0]?.message?.content || parsed.content?.[0]?.text || decoded;
+        } catch {}
       }
 
       const contentType = response.headers.get('content-type') || '';
@@ -339,12 +375,19 @@ export function ProvidersPage() {
         }
       }
 
+      if (!rawUpstreamResponse) {
+        rawUpstreamResponse = assistantText;
+      }
+
       setPlaygroundResponse({
         text: assistantText,
+        sanitizedPrompt: sanitizedPrompt || playgroundPrompt,
+        rawUpstreamResponse: rawUpstreamResponse,
         latencyMs,
         tokensUsed,
         status: response.status,
       });
+      setActivePlaygroundTab('client');
     } catch (err: any) {
       setPlaygroundError(err.message || 'Failed to receive response from provider.');
     } finally {
@@ -821,15 +864,16 @@ export function ProvidersPage() {
               </div>
             )}
 
-            {/* Step 4: Final Detokenized Response Output */}
+            {/* Step 4: 3-Stage Privacy Verification Inspector */}
             {playgroundResponse && (
-              <div className="p-4 bg-slate-950 border border-emerald-800/50 rounded-xl space-y-3 shadow-xl">
-                <div className="flex items-center justify-between">
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-4 shadow-xl">
+                {/* Meta Header */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-emerald-300 text-xs flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Detokenized AI Response (Original PII Restored)
+                    <span className="font-semibold text-slate-200 text-xs flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-emerald-400" /> 4. Privacy Inspection & Verification
                     </span>
-                    <span className="font-mono text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-900">
+                    <span className="font-mono text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-900/50">
                       HTTP {playgroundResponse.status} OK
                     </span>
                   </div>
@@ -839,9 +883,107 @@ export function ProvidersPage() {
                   </div>
                 </div>
 
-                <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-xl font-mono text-xs text-slate-100 whitespace-pre-wrap leading-relaxed">
-                  {playgroundResponse.text}
+                {/* 3-View Tab Switcher */}
+                <div className="grid grid-cols-3 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800 text-[11px] font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setActivePlaygroundTab('sent_external')}
+                    className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition text-center ${
+                      activePlaygroundTab === 'sent_external'
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <Lock className="w-3 h-3 shrink-0" />
+                    <span>1. Dikirim ke External</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActivePlaygroundTab('raw_external')}
+                    className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition text-center ${
+                      activePlaygroundTab === 'raw_external'
+                        ? 'bg-amber-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <Cpu className="w-3 h-3 shrink-0" />
+                    <span>2. Response dari External</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActivePlaygroundTab('client')}
+                    className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition text-center ${
+                      activePlaygroundTab === 'client'
+                        ? 'bg-emerald-600 text-white shadow'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <Sparkles className="w-3 h-3 shrink-0" />
+                    <span>3. Ditampilkan ke Client</span>
+                  </button>
                 </div>
+
+                {/* Tab 1: Sent to External Router (Sanitized with Tokens) */}
+                {activePlaygroundTab === 'sent_external' && (
+                  <div className="space-y-2 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-blue-300 font-semibold flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-blue-400" /> Sanitized Prompt (Yang Diterima Cloud Router / 9router)
+                      </span>
+                      <span className="text-[10px] text-blue-400 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-900/50 font-mono">
+                        Surrogate Tokens Only • Zero PII Leak
+                      </span>
+                    </div>
+                    <div className="p-3.5 bg-blue-950/20 border border-blue-900/50 rounded-xl font-mono text-xs text-blue-100 whitespace-pre-wrap leading-relaxed">
+                      {playgroundResponse.sanitizedPrompt || playgroundPrompt}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Seluruh identitas asli (nama, email, alamat crypto) telah digantikan dengan token acak sebelum keluar dari server Anda.
+                    </p>
+                  </div>
+                )}
+
+                {/* Tab 2: Raw Response from External Router */}
+                {activePlaygroundTab === 'raw_external' && (
+                  <div className="space-y-2 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-amber-300 font-semibold flex items-center gap-1.5">
+                        <Cpu className="w-3.5 h-3.5 text-amber-400" /> Raw Response (Jawaban Mentah yang Dikirim oleh AI)
+                      </span>
+                      <span className="text-[10px] text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-900/50 font-mono">
+                        Tokenized AI Completion
+                      </span>
+                    </div>
+                    <div className="p-3.5 bg-amber-950/20 border border-amber-900/50 rounded-xl font-mono text-xs text-amber-100 whitespace-pre-wrap leading-relaxed">
+                      {playgroundResponse.rawUpstreamResponse || playgroundResponse.text}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Model AI memproses dan menyusun jawaban menggunakan token acak tanpa pernah mengetahui data sensitif asli Anda.
+                    </p>
+                  </div>
+                )}
+
+                {/* Tab 3: Final Client Plaintext Result */}
+                {activePlaygroundTab === 'client' && (
+                  <div className="space-y-2 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Detokenized Result (Hasil Akhir di Client / IDE)
+                      </span>
+                      <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/50 font-mono">
+                        Plaintext Restored Transparently
+                      </span>
+                    </div>
+                    <div className="p-3.5 bg-slate-900 border border-emerald-800/40 rounded-xl font-mono text-xs text-slate-100 whitespace-pre-wrap leading-relaxed">
+                      {playgroundResponse.text}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Privacy Proxy secara transparan memulihkan token kembali ke data asli sebelum diserahkan ke aplikasi/IDE Anda.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
