@@ -42,8 +42,8 @@ export async function forwardUpstreamRequest(
   headers: Record<string, string | string[] | undefined>,
   body: string | Buffer | null,
 ): Promise<Dispatcher.ResponseData> {
-  const targetBaseUrl = upstreamStore.resolveTargetBaseUrl(headers);
-  const targetUrl = `${targetBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  const { targetBaseUrl, targetPath } = upstreamStore.resolveTarget(headers, path);
+  const targetUrl = `${targetBaseUrl}${targetPath.startsWith('/') ? targetPath : `/${targetPath}`}`;
   const cleanHeaders = sanitizeForwardHeaders(headers);
 
   if (body) {

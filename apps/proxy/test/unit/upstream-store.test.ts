@@ -8,6 +8,16 @@ describe('UpstreamStore & Multi-Provider Routing', () => {
     expect(target.startsWith('http')).toBe(true);
   });
 
+  it('should resolve specific provider by path /p/:providerId/v1/...', () => {
+    const resultAnthropic = upstreamStore.resolveTarget({}, '/p/anthropic/v1/messages');
+    expect(resultAnthropic.targetBaseUrl).toBe('https://api.anthropic.com');
+    expect(resultAnthropic.targetPath).toBe('/v1/messages');
+
+    const resultOpenAI = upstreamStore.resolveTarget({}, '/p/openai/v1/chat/completions');
+    expect(resultOpenAI.targetBaseUrl).toBe('https://api.openai.com');
+    expect(resultOpenAI.targetPath).toBe('/v1/chat/completions');
+  });
+
   it('should resolve specific provider by X-Upstream-Provider header', () => {
     const targetAnthropic = upstreamStore.resolveTargetBaseUrl({
       'x-upstream-provider': 'anthropic',

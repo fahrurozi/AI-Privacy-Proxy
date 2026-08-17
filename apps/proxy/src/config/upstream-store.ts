@@ -61,29 +61,78 @@ class UpstreamStore {
     };
   }
 
-  resolveTargetBaseUrl(headers: Record<string, string | string[] | undefined>): string {
-    // 1. Check explicit base URL header override
-    const explicitUrlHeader = headers['x-upstream-base-url'];
-    if (typeof explicitUrlHeader === 'string' && explicitUrlHeader.trim()) {
-      return explicitUrlHeader.trim().replace(/\/+$/, '');
-    }
+  getProvider(id: string): UpstreamProvider | undefined {
+    return this.providers.get(id.toLowerCase());
+  }
 
-    // 2. Check provider ID header (e.g. x-upstream-provider: anthropic)
-    const providerHeader = headers['x-upstream-provider'];
-    if (typeof providerHeader === 'string' && providerHeader.trim()) {
-      const p = this.providers.get(providerHeader.trim().toLowerCase());
-      if (p && p.baseUrl) {
-        return p.baseUrl.replace(/\/+$/, '');
+  /**
+   * Resolves the target upstream base URL and normalizes the target path.
+   * Supports:
+   * 1. Path-based provider routing: /p/:providerId/v1/... or /provider/:providerId/...
+   * 2. Header-based provider routing: x-upstream-provider / x-provider
+   * 3. Explicit base URL header override: x-upstream-base-url
+   * 4. Default provider fallback
+   */
+  resolveTarget(
+    headers: Record<string, string | string[] | undefined>,
+    rawPath: string = '/',
+  ): { targetBaseUrl: string; targetPath: string } {
+    let cleanPath = rawPath.split('?')[0] || '/';
+    let targetBaseUrl = '';
+
+    // 1. Check path prefix: /p/:providerId/... or /provider/:providerId/...
+    const pathPrefixMatch = cleanPath.match(/^\/(?:p|provider)\/([a-zA-Z0-9_-]+)(\/.*)?$/i);
+    if (pathPrefixMatch) {
+      const providerId = pathPrefixMatch[1]?.toLowerCase();
+      cleanPath = pathPrefixMatch[2] || '/';
+      if (providerId && this.providers.has(providerId)) {
+        targetBaseUrl = this.providers.get(providerId)!.baseUrl;
       }
     }
 
-    // 3. Fall back to current default provider
-    const defaultProv = this.providers.get(this.defaultProviderId);
-    if (defaultProv && defaultProv.baseUrl) {
-      return defaultProv.baseUrl.replace(/\/+$/, '');
+    // 2. If not matched by path, check explicit base URL header override
+    if (!targetBaseUrl) {
+      const explicitUrlHeader = headers['x-upstream-base-url'];
+      if (typeof explicitUrlHeader === 'string' && explicitUrlHeader.trim()) {
+        targetBaseUrl = explicitUrlHeader.trim();
+      }
     }
 
-    return config.UPSTREAM_BASE_URL.replace(/\/+$/, '');
+    // 3. Check provider ID header (e.g. x-upstream-provider: 9router or x-provider: 9router)
+    if (!targetBaseUrl) {
+      const providerHeader = headers['x-upstream-provider'] || headers['x-provider'];
+      if (typeof providerHeader === 'string' && providerHeader.trim()) {
+        const p = this.providers.get(providerHeader.trim().toLowerCase());
+        if (p && p.baseUrl) {
+          targetBaseUrl = p.baseUrl;
+        }
+      }
+    }
+
+    // 4. Fall back to current default provider or config
+    if (!targetBaseUrl) {
+      const defaultProv = this.providers.get(this.defaultProviderId);
+      targetBaseUrl = defaultProv?.baseUrl || config.UPSTREAM_BASE_URL || 'https://api.openai.com';
+    }
+
+    targetBaseUrl = targetBaseUrl.replace(/\/+$/, '');
+
+    // Normalize duplicate /v1 if provider baseUrl already ends with /v1
+    if (targetBaseUrl.endsWith('/v1') && cleanPath.startsWith('/v1/')) {
+      cleanPath = cleanPath.slice(3);
+    }
+
+    // Preserve query parameters if any
+    const queryIndex = rawPath.indexOf('?');
+    if (queryIndex !== -1) {
+      cleanPath += rawPath.slice(queryIndex);
+    }
+
+    return { targetBaseUrl, targetPath: cleanPath };
+  }
+
+  resolveTargetBaseUrl(headers: Record<string, string | string[] | undefined>): string {
+    return this.resolveTarget(headers, '/').targetBaseUrl;
   }
 
   getPrivacyMode(): PrivacyMode {
