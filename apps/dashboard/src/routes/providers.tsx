@@ -426,11 +426,22 @@ export function ProvidersPage() {
                     </td>
 
                     <td className="px-5 py-4 font-mono">
-                      <div className="flex items-center gap-2">
-                        <code className="text-emerald-400 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800 text-[11px]">
-                          {proxyUrl}
-                        </code>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyBaseUrl(p.id)}
+                        className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[11px] font-mono transition text-left ${
+                          isCopied
+                            ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-md shadow-emerald-950/40'
+                            : 'bg-slate-950 hover:bg-slate-900 border-slate-800 hover:border-slate-700 text-emerald-400'
+                        }`}
+                        title="Click to copy Direct Proxy Endpoint URL"
+                      >
+                        <span className="truncate max-w-xs sm:max-w-md">{proxyUrl}</span>
+                        <span className="shrink-0 text-slate-500 group-hover:text-emerald-300 transition">
+                          {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </span>
+                        {isCopied && <span className="text-[10px] text-emerald-400 font-sans font-medium shrink-0">Copied!</span>}
+                      </button>
                     </td>
 
                     <td className="px-5 py-4 text-right">
@@ -444,21 +455,7 @@ export function ProvidersPage() {
                           <FlaskConical className="w-3.5 h-3.5 text-purple-400" /> Playground
                         </button>
 
-                        {/* 2. Copy Base URL Button */}
-                        <button
-                          onClick={() => handleCopyBaseUrl(p.id)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                            isCopied
-                              ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/20'
-                              : 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border-blue-500/40'
-                          }`}
-                          title="Copy Proxy Base URL for this provider"
-                        >
-                          {isCopied ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5 text-blue-400" />}
-                          <span>{isCopied ? 'Copied URL!' : 'Copy Base URL'}</span>
-                        </button>
-
-                        {/* 3. Edit Provider Button */}
+                        {/* 2. Edit Provider Button */}
                         <button
                           onClick={() => handleOpenEdit(p)}
                           className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs"
@@ -467,7 +464,7 @@ export function ProvidersPage() {
                           <Pencil className="w-3.5 h-3.5 text-amber-400" /> Edit
                         </button>
 
-                        {/* 4. Setup Guide Button */}
+                        {/* 3. Setup Guide Button */}
                         <button
                           onClick={() => setSelectedProviderForGuide(p)}
                           className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs"
@@ -476,7 +473,7 @@ export function ProvidersPage() {
                           <Terminal className="w-3.5 h-3.5 text-slate-400" /> Setup
                         </button>
 
-                        {/* 5. Delete Provider */}
+                        {/* 4. Delete Provider */}
                         {providers.length > 1 && (
                           <button
                             onClick={() => handleDeleteProvider(p.id)}
