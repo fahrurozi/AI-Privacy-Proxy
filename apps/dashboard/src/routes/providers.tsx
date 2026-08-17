@@ -12,10 +12,8 @@ import {
   Copy,
   Terminal,
   Code2,
-  Play,
   FlaskConical,
   Key,
-  Cpu,
   Send,
   Loader2,
   RefreshCw,
@@ -23,6 +21,7 @@ import {
   Shield,
   Eye,
   EyeOff,
+  Pencil,
 } from 'lucide-react';
 
 export function ProvidersPage() {
@@ -35,6 +34,13 @@ export function ProvidersPage() {
 
   // Setup Guide Drawer state
   const [selectedProviderForGuide, setSelectedProviderForGuide] = useState<UpstreamProvider | null>(null);
+
+  // Edit Provider Drawer state
+  const [selectedProviderForEdit, setSelectedProviderForEdit] = useState<UpstreamProvider | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editBaseUrl, setEditBaseUrl] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Playground Drawer State
   const [selectedProviderForPlayground, setSelectedProviderForPlayground] = useState<UpstreamProvider | null>(null);
@@ -114,6 +120,44 @@ export function ProvidersPage() {
     setPlaygroundError(null);
   };
 
+  const handleOpenEdit = (provider: UpstreamProvider) => {
+    setSelectedProviderForEdit(provider);
+    setEditName(provider.name);
+    setEditBaseUrl(provider.baseUrl);
+    setEditDesc(provider.description || '');
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProviderForEdit || !editName.trim() || !editBaseUrl.trim()) return;
+
+    const formattedUrl = editBaseUrl.trim().replace(/\/+$/, '');
+
+    try {
+      setIsSavingEdit(true);
+      const res = await fetchApi<{ status: string; provider: UpstreamProvider; settings: UpstreamSettings }>(
+        `/admin/providers/${selectedProviderForEdit.id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: editName.trim(),
+            baseUrl: formattedUrl,
+            description: editDesc.trim() || undefined,
+          }),
+        }
+      );
+
+      setProviders(res.settings.providers);
+      setSelectedProviderForEdit(null);
+      setStatusMessage({ text: `Provider "${editName}" updated successfully!`, type: 'success' });
+      setTimeout(() => setStatusMessage(null), 3500);
+    } catch (err: any) {
+      setStatusMessage({ text: `Failed to update provider: ${err.message}`, type: 'error' });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const handleTestConnection = async () => {
     if (!selectedProviderForPlayground || !ephemeralKey.trim()) {
       setPlaygroundError('Please enter an API Secret Key to test the connection.');
@@ -139,11 +183,9 @@ export function ProvidersPage() {
       const latency = Date.now() - startTime;
 
       if (!response.ok) {
-        // If /models returned 404 or 401, check if anthropic or custom provider
         if (response.status === 401 || response.status === 403) {
           throw new Error(`Authentication Failed (HTTP ${response.status}): Invalid API Key.`);
         }
-        // Fallback for providers that don't support GET /v1/models (e.g. Anthropic direct)
         const defaultModels =
           selectedProviderForPlayground.id === 'anthropic'
             ? ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229']
@@ -411,7 +453,16 @@ export function ProvidersPage() {
                           <span>{isCopied ? 'Copied URL!' : 'Copy Base URL'}</span>
                         </button>
 
-                        {/* 3. Setup Guide Button */}
+                        {/* 3. Edit Provider Button */}
+                        <button
+                          onClick={() => handleOpenEdit(p)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs"
+                          title="Edit provider settings and base URL"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-amber-400" /> Edit
+                        </button>
+
+                        {/* 4. Setup Guide Button */}
                         <button
                           onClick={() => setSelectedProviderForGuide(p)}
                           className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs"
@@ -420,7 +471,7 @@ export function ProvidersPage() {
                           <Terminal className="w-3.5 h-3.5 text-slate-400" /> Setup
                         </button>
 
-                        {/* 4. Delete Provider */}
+                        {/* 5. Delete Provider */}
                         {providers.length > 1 && (
                           <button
                             onClick={() => handleDeleteProvider(p.id)}
@@ -440,7 +491,90 @@ export function ProvidersPage() {
         </div>
       </div>
 
-      {/* 1. SLIDE-OVER DRAWER: Live Interactive Provider Playground */}
+      {/* 1. SLIDE-OVER DRAWER: Edit Provider */}
+      <SlideOverDrawer
+        isOpen={selectedProviderForEdit !== null}
+        onClose={() => setSelectedProviderForEdit(null)}
+        title={selectedProviderForEdit ? `Edit Provider: ${selectedProviderForEdit.name}` : ''}
+        subtitle="Update provider display name, target base URL, and description"
+        widthClass="max-w-md"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setSelectedProviderForEdit(null)}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              disabled={isSavingEdit || !editName.trim() || !editBaseUrl.trim()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
+            >
+              {isSavingEdit ? 'Saving...' : 'Save Changes'}
+            </button>
+          </>
+        }
+      >
+        {selectedProviderForEdit && (
+          <form onSubmit={handleSaveEdit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                Provider ID <span className="text-slate-500 font-normal">(Permanent path identifier)</span>
+              </label>
+              <input
+                type="text"
+                value={selectedProviderForEdit.id}
+                disabled
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 font-mono opacity-80 cursor-not-allowed"
+              />
+              <p className="text-[10px] text-slate-500 mt-1 font-mono">
+                Direct URL: {getProxyBaseUrl(selectedProviderForEdit.id)}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Display Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Target Upstream Base URL</label>
+              <input
+                type="url"
+                value={editBaseUrl}
+                onChange={(e) => setEditBaseUrl(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                required
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                Example: https://api.openai.com or http://9router.mfahrurozi.my.id/api/v1
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Description (Optional)</label>
+              <input
+                type="text"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                placeholder="Provider description"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </form>
+        )}
+      </SlideOverDrawer>
+
+      {/* 2. SLIDE-OVER DRAWER: Live Interactive Provider Playground */}
       <SlideOverDrawer
         isOpen={selectedProviderForPlayground !== null}
         onClose={() => setSelectedProviderForPlayground(null)}
@@ -657,7 +791,7 @@ export function ProvidersPage() {
         )}
       </SlideOverDrawer>
 
-      {/* 2. SLIDE-OVER DRAWER: Client Setup Guide */}
+      {/* 3. SLIDE-OVER DRAWER: Client Setup Guide */}
       <SlideOverDrawer
         isOpen={selectedProviderForGuide !== null}
         onClose={() => setSelectedProviderForGuide(null)}
@@ -742,7 +876,7 @@ export function ProvidersPage() {
         )}
       </SlideOverDrawer>
 
-      {/* 3. SLIDE-OVER DRAWER: Add Provider */}
+      {/* 4. SLIDE-OVER DRAWER: Add Provider */}
       <SlideOverDrawer
         isOpen={showAddDrawer}
         onClose={() => setShowAddDrawer(false)}

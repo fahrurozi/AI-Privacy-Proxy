@@ -430,6 +430,34 @@ export async function adminRoutes(fastify: FastifyInstance) {
     return reply.send({ status: 'ok', provider, settings: upstreamStore.getSettings() });
   });
 
+  fastify.put('/admin/providers/:id', async (req, reply) => {
+    if (!verifyAdminAuth(req, reply)) return;
+    const { id } = req.params as { id: string };
+    const provider = req.body as UpstreamProvider;
+    if (!provider.baseUrl || !provider.name) {
+      return reply.status(400).send({ error: 'invalid_provider', message: 'Missing required provider fields' });
+    }
+
+    if (!isSafeUpstreamUrl(provider.baseUrl)) {
+      return reply.status(400).send({
+        error: 'unsafe_upstream_url',
+        message: 'The specified base URL is invalid or targets a disallowed internal address (SSRF protection).',
+      });
+    }
+
+    const updatedProvider: UpstreamProvider = {
+      ...provider,
+      id,
+    };
+
+    const added = upstreamStore.addOrUpdateProvider(updatedProvider);
+    if (!added) {
+      return reply.status(400).send({ error: 'unsafe_upstream_url', message: 'The specified URL failed safety validation.' });
+    }
+
+    return reply.send({ status: 'ok', provider: updatedProvider, settings: upstreamStore.getSettings() });
+  });
+
   fastify.delete('/admin/providers/:id', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
     const { id } = req.params as { id: string };
