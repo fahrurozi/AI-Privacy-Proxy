@@ -1,11 +1,10 @@
-import { UpstreamProvider, UpstreamSettings } from '@ai-privacy-proxy/shared';
+import { UpstreamProvider, UpstreamSettings, PrivacyMode } from '@ai-privacy-proxy/shared';
 import { config } from './index.js';
-import { vault } from '../vault/redis-vault.js';
 
 class UpstreamStore {
   private providers: Map<string, UpstreamProvider> = new Map();
   private defaultProviderId = 'default';
-  private privacyMode: 'strict' | 'balanced' = config.PRIVACY_MODE;
+  private privacyMode: PrivacyMode = config.PRIVACY_MODE;
   private vaultTtlSeconds: number = config.VAULT_TTL_SECONDS;
 
   constructor() {
@@ -87,7 +86,7 @@ class UpstreamStore {
     return config.UPSTREAM_BASE_URL.replace(/\/+$/, '');
   }
 
-  getPrivacyMode(): 'strict' | 'balanced' {
+  getPrivacyMode(): PrivacyMode {
     return this.privacyMode;
   }
 
@@ -98,7 +97,7 @@ class UpstreamStore {
   updateSettings(newSettings: {
     defaultProviderId?: string;
     upstreamBaseUrl?: string;
-    privacyMode?: 'strict' | 'balanced';
+    privacyMode?: PrivacyMode;
     vaultTtlSeconds?: number;
     providers?: UpstreamProvider[];
   }) {
@@ -149,7 +148,7 @@ class UpstreamStore {
   }
 
   deleteProvider(id: string): boolean {
-    if (this.providers.size <= 1) return false; // Prevent deleting last provider
+    if (this.providers.size <= 1) return false;
     const wasDefault = this.defaultProviderId === id;
     this.providers.delete(id);
     if (wasDefault) {

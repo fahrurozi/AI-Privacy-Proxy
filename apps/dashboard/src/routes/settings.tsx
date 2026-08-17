@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { UpstreamProvider, UpstreamSettings } from '@ai-privacy-proxy/shared';
+import { UpstreamProvider, UpstreamSettings, PrivacyMode } from '@ai-privacy-proxy/shared';
 import { fetchApi, getAdminKey, setAdminKey } from '../lib/api.js';
+import { SlideOverDrawer } from '../components/SlideOverDrawer.js';
 import {
   Settings,
   Save,
@@ -13,27 +14,26 @@ import {
   Plus,
   Trash2,
   Check,
-  Radio,
   Clock,
-  Sparkles,
-  ExternalLink,
   Code2,
+  ZapOff,
+  Shield,
+  ShieldAlert,
 } from 'lucide-react';
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<UpstreamSettings | null>(null);
   const [providers, setProviders] = useState<UpstreamProvider[]>([]);
   const [defaultProviderId, setDefaultProviderId] = useState('default');
-  const [privacyMode, setPrivacyMode] = useState<'strict' | 'balanced'>('strict');
+  const [privacyMode, setPrivacyMode] = useState<PrivacyMode>('strict');
   const [ttl, setTtl] = useState(3600);
   const [adminKey, setAdminKeyInput] = useState(getAdminKey());
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [testingId, setTestingId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // New Provider Form State
-  const [showAddModal, setShowAddModal] = useState(false);
+  // Add Provider Drawer State
+  const [showAddDrawer, setShowAddDrawer] = useState(false);
   const [newProvName, setNewProvName] = useState('');
   const [newProvId, setNewProvId] = useState('');
   const [newProvUrl, setNewProvUrl] = useState('');
@@ -63,7 +63,7 @@ export function SettingsPage() {
         method: 'PUT',
         body: JSON.stringify({ defaultProviderId: providerId }),
       });
-      setStatusMessage({ text: `Default upstream set to "${providerId}"`, type: 'success' });
+      setStatusMessage({ text: `Default upstream switched to "${providerId}"!`, type: 'success' });
       loadSettings();
       setTimeout(() => setStatusMessage(null), 3000);
     } catch (err: any) {
@@ -90,8 +90,8 @@ export function SettingsPage() {
         body: JSON.stringify(newProv),
       });
 
-      setStatusMessage({ text: `Provider "${newProv.name}" added successfully!`, type: 'success' });
-      setShowAddModal(false);
+      setStatusMessage({ text: `Provider "${newProv.name}" registered successfully!`, type: 'success' });
+      setShowAddDrawer(false);
       setNewProvName('');
       setNewProvId('');
       setNewProvUrl('');
@@ -148,13 +148,11 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100">Gateway Upstream & System Settings</h1>
-          <p className="text-sm text-slate-400">
-            Manage multi-provider routing, dynamic privacy operating mode, and ephemeral Token Vault TTL without touching .env.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-100">Gateway Upstream & System Settings</h1>
+        <p className="text-sm text-slate-400">
+          Manage multi-provider routing, dynamic privacy operating mode, and ephemeral Token Vault TTL without touching .env.
+        </p>
       </div>
 
       {statusMessage && (
@@ -180,85 +178,15 @@ export function SettingsPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition shrink-0"
+            onClick={() => setShowAddDrawer(true)}
+            className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition shrink-0 shadow-lg shadow-blue-600/20"
           >
             <Plus className="w-4 h-4" /> Add Provider
           </button>
         </div>
 
-        {/* Add Provider Modal / Form */}
-        {showAddModal && (
-          <form onSubmit={handleAddProvider} className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-4">
-            <h3 className="text-sm font-semibold text-slate-200">Register New AI Provider / Router</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Provider Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. DeepSeek Official"
-                  value={newProvName}
-                  onChange={(e) => {
-                    setNewProvName(e.target.value);
-                    if (!newProvId) setNewProvId(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'));
-                  }}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Provider ID (header lookup)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. deepseek"
-                  value={newProvId}
-                  onChange={(e) => setNewProvId(e.target.value)}
-                  className="w-full bg-slate-900 font-mono border border-slate-800 rounded-lg px-3 py-2 text-xs text-blue-400 focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Base URL</label>
-                <input
-                  type="url"
-                  placeholder="https://api.deepseek.com"
-                  value={newProvUrl}
-                  onChange={(e) => setNewProvUrl(e.target.value)}
-                  className="w-full bg-slate-900 font-mono border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">Description (Optional)</label>
-              <input
-                type="text"
-                placeholder="e.g. Primary router for coding and chat completions"
-                value={newProvDesc}
-                onChange={(e) => setNewProvDesc(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
-              />
-            </div>
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition"
-              >
-                Save Provider
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
-
         {/* Providers Table */}
-        <div className="border border-slate-800 rounded-lg overflow-hidden">
+        <div className="border border-slate-800 rounded-xl overflow-hidden">
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
               <tr>
@@ -319,117 +247,157 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* 2. System Settings (Privacy Mode & Vault TTL) */}
+      {/* 2. System Settings: 3-Way Privacy Operating Mode & Vault TTL */}
       <form onSubmit={handleSaveSystemSettings} className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6">
         <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
           <Settings className="w-4 h-4 text-emerald-400" /> Real-time Privacy & Storage Controls
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Privacy Mode */}
-          <div className="space-y-3 p-4 bg-slate-950 border border-slate-800 rounded-xl">
-            <div className="flex items-center justify-between">
+        {/* 3-Way Privacy Mode Cards */}
+        <div className="space-y-3 p-5 bg-slate-950 border border-slate-800 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div>
               <label className="text-sm font-semibold text-slate-200">Privacy Operating Mode</label>
-              <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold ${
-                privacyMode === 'strict'
-                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                  : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
-              }`}>
-                {privacyMode.toUpperCase()}
-              </span>
+              <p className="text-xs text-slate-400 mt-0.5">Select how the gateway handles requests, failovers, and filtering.</p>
             </div>
-
-            <div className="space-y-2 pt-1">
-              <label
-                onClick={() => setPrivacyMode('strict')}
-                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${
-                  privacyMode === 'strict'
-                    ? 'bg-blue-500/5 border-blue-500/40 text-slate-100'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-850'
-                }`}
-              >
-                <div className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
-                  privacyMode === 'strict' ? 'border-blue-400 bg-blue-500' : 'border-slate-600'
-                }`}>
-                  {privacyMode === 'strict' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-200">Strict (Fail-Closed — Recommended)</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
-                    Rejects requests if Presidio or Redis is unavailable to guarantee zero data leakage.
-                  </div>
-                </div>
-              </label>
-
-              <label
-                onClick={() => setPrivacyMode('balanced')}
-                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${
-                  privacyMode === 'balanced'
-                    ? 'bg-yellow-500/5 border-yellow-500/40 text-slate-100'
-                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-850'
-                }`}
-              >
-                <div className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
-                  privacyMode === 'balanced' ? 'border-yellow-400 bg-yellow-500' : 'border-slate-600'
-                }`}>
-                  {privacyMode === 'balanced' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-200">Balanced (Fail-Open with Alerts)</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
-                    Falls back to built-in pattern engine if Presidio NLP service is offline.
-                  </div>
-                </div>
-              </label>
-            </div>
+            <span className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold ${
+              privacyMode === 'strict'
+                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                : privacyMode === 'balanced'
+                ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
+                : 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+            }`}>
+              {privacyMode.toUpperCase()}
+            </span>
           </div>
 
-          {/* Token Vault TTL */}
-          <div className="space-y-3 p-4 bg-slate-950 border border-slate-800 rounded-xl">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-purple-400" /> Token Vault TTL
-              </label>
-              <span className="font-mono text-xs text-purple-400 font-semibold">{formatTtl(ttl)}</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            {/* Strict */}
+            <div
+              onClick={() => setPrivacyMode('strict')}
+              className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
+                privacyMode === 'strict'
+                  ? 'bg-blue-500/10 border-blue-500/50 text-slate-100 ring-1 ring-blue-500/30'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-850'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-xs text-blue-400 flex items-center gap-1.5">
+                    <Shield className="w-4 h-4" /> STRICT
+                  </span>
+                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                    privacyMode === 'strict' ? 'border-blue-400 bg-blue-500' : 'border-slate-600'
+                  }`}>
+                    {privacyMode === 'strict' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                  </div>
+                </div>
+                <div className="text-xs font-semibold text-slate-200 mb-1">Fail-Closed (Recommended)</div>
+                <div className="text-[11px] text-slate-400 leading-relaxed">
+                  Rejects requests if Presidio or Redis is unavailable to guarantee zero data leakage.
+                </div>
+              </div>
             </div>
 
-            <p className="text-xs text-slate-400">
-              Lifespan of ephemeral token-to-plaintext mappings in Redis. Automatically purged on expiry.
-            </p>
+            {/* Balanced */}
+            <div
+              onClick={() => setPrivacyMode('balanced')}
+              className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
+                privacyMode === 'balanced'
+                  ? 'bg-yellow-500/10 border-yellow-500/50 text-slate-100 ring-1 ring-yellow-500/30'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-850'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-xs text-yellow-400 flex items-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4" /> BALANCED
+                  </span>
+                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                    privacyMode === 'balanced' ? 'border-yellow-400 bg-yellow-500' : 'border-slate-600'
+                  }`}>
+                    {privacyMode === 'balanced' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                  </div>
+                </div>
+                <div className="text-xs font-semibold text-slate-200 mb-1">Fail-Open with Alerts</div>
+                <div className="text-[11px] text-slate-400 leading-relaxed">
+                  Falls back to built-in pattern regex engine if Presidio NLP service is offline.
+                </div>
+              </div>
+            </div>
 
-            <div className="space-y-3 pt-2">
-              <input
-                type="range"
-                min={60}
-                max={86400}
-                step={300}
-                value={ttl}
-                onChange={(e) => setTtl(parseInt(e.target.value, 10))}
-                className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
-              />
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={10}
-                  max={604800}
-                  value={ttl}
-                  onChange={(e) => setTtl(parseInt(e.target.value, 10) || 60)}
-                  className="w-32 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
-                />
-                <span className="text-xs text-slate-500">seconds (e.g. 3600 = 1 hr, 86400 = 24 hrs)</span>
+            {/* Bypass */}
+            <div
+              onClick={() => setPrivacyMode('bypass')}
+              className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
+                privacyMode === 'bypass'
+                  ? 'bg-purple-500/10 border-purple-500/50 text-slate-100 ring-1 ring-purple-500/30'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-850'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-xs text-purple-400 flex items-center gap-1.5">
+                    <ZapOff className="w-4 h-4" /> BYPASS
+                  </span>
+                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                    privacyMode === 'bypass' ? 'border-purple-400 bg-purple-500' : 'border-slate-600'
+                  }`}>
+                    {privacyMode === 'bypass' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                  </div>
+                </div>
+                <div className="text-xs font-semibold text-slate-200 mb-1">Direct Passthrough</div>
+                <div className="text-[11px] text-slate-400 leading-relaxed">
+                  Does not perform any PII detection or tokenization. Forwards raw requests directly to upstream.
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 3. Admin Authentication Key */}
-        <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+        {/* Token Vault TTL */}
+        <div className="space-y-3 p-5 bg-slate-950 border border-slate-800 rounded-xl">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5 text-emerald-400" /> Admin Access Key (X-Admin-Key)
+            <label className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-purple-400" /> Token Vault TTL
             </label>
+            <span className="font-mono text-xs text-purple-400 font-semibold">{formatTtl(ttl)}</span>
           </div>
+
+          <p className="text-xs text-slate-400">
+            Lifespan of ephemeral token-to-plaintext mappings in Redis. Automatically purged on expiry.
+          </p>
+
+          <div className="space-y-3 pt-2">
+            <input
+              type="range"
+              min={60}
+              max={86400}
+              step={300}
+              value={ttl}
+              onChange={(e) => setTtl(parseInt(e.target.value, 10))}
+              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+            />
+
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={10}
+                max={604800}
+                value={ttl}
+                onChange={(e) => setTtl(parseInt(e.target.value, 10) || 60)}
+                className="w-32 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+              />
+              <span className="text-xs text-slate-500">seconds (e.g. 3600 = 1 hr, 86400 = 24 hrs)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Admin Authentication Key */}
+        <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-emerald-400" /> Admin Access Key (X-Admin-Key)
+          </label>
           <div className="relative max-w-md">
             <input
               type={showKey ? 'text' : 'password'}
@@ -452,37 +420,89 @@ export function SettingsPage() {
         <button
           type="submit"
           disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition disabled:opacity-50"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
         >
           <Save className="w-4 h-4" /> {saving ? 'Applying...' : 'Save & Apply All Settings'}
         </button>
       </form>
 
-      {/* 4. Client Integration & Routing Cheat Sheet */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
-        <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-          <Code2 className="w-4 h-4 text-purple-400" /> Multi-Provider Dynamic Routing Guide
-        </h2>
-        <p className="text-xs text-slate-400">
-          Client applications (Claude Code, OpenAI SDK, LangChain, curl) can switch upstream target providers on-the-fly:
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
-            <div className="text-xs font-semibold text-slate-200">1. Automatic (Default Active Provider)</div>
-            <div className="text-[11px] text-slate-400">
-              Point your client base URL to <code className="text-blue-400 font-mono">http://localhost:8080</code>. The proxy forwards to whichever provider is marked <strong>Active Default</strong> above.
-            </div>
+      {/* 3. RIGHT SLIDE-OVER DRAWER: Add Upstream Provider */}
+      <SlideOverDrawer
+        isOpen={showAddDrawer}
+        onClose={() => setShowAddDrawer(false)}
+        title="Register AI Provider / Router"
+        subtitle="Configure a new LLM provider or self-hosted router destination"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowAddDrawer(false)}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAddProvider}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-blue-600/20"
+            >
+              Save Provider
+            </button>
+          </>
+        }
+      >
+        <form onSubmit={handleAddProvider} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Provider Display Name</label>
+            <input
+              type="text"
+              placeholder="e.g. DeepSeek Official"
+              value={newProvName}
+              onChange={(e) => {
+                setNewProvName(e.target.value);
+                if (!newProvId) setNewProvId(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'));
+              }}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+              required
+            />
           </div>
 
-          <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
-            <div className="text-xs font-semibold text-slate-200">2. Specific Provider via Header</div>
-            <div className="text-[11px] text-slate-400">
-              Add header <code className="text-emerald-400 font-mono">X-Upstream-Provider: anthropic</code> (or openai, openrouter, etc.) to target a registered provider dynamically.
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Provider ID (for header routing)</label>
+            <input
+              type="text"
+              placeholder="e.g. deepseek"
+              value={newProvId}
+              onChange={(e) => setNewProvId(e.target.value)}
+              className="w-full bg-slate-950 font-mono border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-blue-400 focus:outline-none focus:border-blue-500"
+              required
+            />
           </div>
-        </div>
-      </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Base URL</label>
+            <input
+              type="url"
+              placeholder="https://api.deepseek.com"
+              value={newProvUrl}
+              onChange={(e) => setNewProvUrl(e.target.value)}
+              className="w-full bg-slate-950 font-mono border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Description (Optional)</label>
+            <textarea
+              rows={3}
+              placeholder="e.g. High performance reasoning router"
+              value={newProvDesc}
+              onChange={(e) => setNewProvDesc(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        </form>
+      </SlideOverDrawer>
     </div>
   );
 }

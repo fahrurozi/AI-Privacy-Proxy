@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { OverviewPage } from './routes/index.js';
 import { MonitoringPage } from './routes/monitoring.js';
 import { PolicyPage } from './routes/policy.js';
@@ -23,11 +23,52 @@ import {
   User,
 } from 'lucide-react';
 
+const VALID_PAGES = ['overview', 'monitoring', 'policy', 'recognizers', 'sessions', 'audit', 'settings'];
+
+function getPageFromUrl(): string {
+  const path = window.location.pathname.replace(/\/+$/, '');
+  const segments = path.split('/');
+  const lastSegment = segments[segments.length - 1] || '';
+
+  if (VALID_PAGES.includes(lastSegment)) {
+    return lastSegment;
+  }
+
+  // Check hash fallback (e.g. #/policy or #policy)
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  if (VALID_PAGES.includes(hash)) {
+    return hash;
+  }
+
+  return 'overview';
+}
+
 export function DashboardApp() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => isAuthenticated());
-  const [currentPage, setCurrentPage] = useState<string>('overview');
+  const [currentPage, setCurrentPage] = useState<string>(() => getPageFromUrl());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  const navigateTo = useCallback((pageId: string) => {
+    if (!VALID_PAGES.includes(pageId)) return;
+    setCurrentPage(pageId);
+    setMobileSidebarOpen(false);
+
+    // Update browser URL without reloading
+    const newPath = `/dashboard/${pageId === 'overview' ? '' : pageId}`;
+    window.history.pushState({ page: pageId }, '', newPath);
+  }, []);
+
+  // Listen for browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPage(getPageFromUrl());
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Listen for auth state changes
   useEffect(() => {
     const handleAuthChange = () => {
       setIsLoggedIn(isAuthenticated());
@@ -44,7 +85,7 @@ export function DashboardApp() {
     }
   };
 
-  // If not authenticated, show dedicated Login screen
+  // If not authenticated, render Login view
   if (!isLoggedIn) {
     return <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />;
   }
@@ -62,7 +103,7 @@ export function DashboardApp() {
   const renderPage = () => {
     switch (currentPage) {
       case 'overview':
-        return <OverviewPage onNavigate={(p) => setCurrentPage(p)} />;
+        return <OverviewPage onNavigate={(p) => navigateTo(p)} />;
       case 'monitoring':
         return <MonitoringPage />;
       case 'policy':
@@ -76,7 +117,7 @@ export function DashboardApp() {
       case 'settings':
         return <SettingsPage />;
       default:
-        return <OverviewPage onNavigate={(p) => setCurrentPage(p)} />;
+        return <OverviewPage onNavigate={(p) => navigateTo(p)} />;
     }
   };
 
@@ -123,10 +164,7 @@ export function DashboardApp() {
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  setCurrentPage(item.id);
-                  setMobileSidebarOpen(false);
-                }}
+                onClick={() => navigateTo(item.id)}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition ${
                   active
                     ? 'bg-blue-600 text-white font-semibold shadow-sm'

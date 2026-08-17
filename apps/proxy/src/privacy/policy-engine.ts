@@ -12,6 +12,13 @@ export class PolicyEngine {
 
     for (const entity of entities) {
       const policy = policyRegistry.getPolicy(entity.entity_type);
+
+      // If policy is disabled, pass it through
+      if (policy.enabled === false) {
+        results.push({ entity, action: 'PASS' });
+        continue;
+      }
+
       const minScore = policy.minScore ?? 0.6;
 
       if (entity.score < minScore) {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export type PrivacyAction = 'TOKENIZE' | 'REDACT' | 'BLOCK' | 'PASS';
+export type PrivacyMode = 'strict' | 'balanced' | 'bypass';
 
 export interface PresidioEntity {
   entity_type: string;
@@ -13,6 +14,8 @@ export interface EntityPolicy {
   entityType: string;
   action: PrivacyAction;
   minScore: number;
+  enabled?: boolean | undefined;
+  description?: string | undefined;
 }
 
 export interface TokenEntry {
@@ -85,7 +88,7 @@ export interface UpstreamProvider {
 export interface UpstreamSettings {
   defaultProviderId: string;
   upstreamBaseUrl: string;
-  privacyMode: 'strict' | 'balanced';
+  privacyMode: PrivacyMode;
   vaultTtlSeconds: number;
   hasCustomKey: boolean;
   providers: UpstreamProvider[];
@@ -104,6 +107,8 @@ export const EntityPolicySchema = z.object({
   entityType: z.string(),
   action: z.enum(['TOKENIZE', 'REDACT', 'BLOCK', 'PASS']),
   minScore: z.number().min(0).max(1).default(0.7),
+  enabled: z.boolean().optional().default(true),
+  description: z.string().optional(),
 });
 
 export const CustomRecognizerSchema = z.object({

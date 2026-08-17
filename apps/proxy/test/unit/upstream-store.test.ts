@@ -33,9 +33,12 @@ describe('UpstreamStore & Multi-Provider Routing', () => {
     expect(target).toBe('https://openrouter.ai/api');
   });
 
-  it('should dynamically update privacy mode and vault ttl', () => {
-    upstreamStore.updateSettings({ privacyMode: 'balanced', vaultTtlSeconds: 7200 });
-    expect(upstreamStore.getPrivacyMode()).toBe('balanced');
+  it('should dynamically update privacy mode to bypass, strict, or balanced', () => {
+    upstreamStore.updateSettings({ privacyMode: 'bypass', vaultTtlSeconds: 7200 });
+    expect(upstreamStore.getPrivacyMode()).toBe('bypass');
     expect(upstreamStore.getVaultTtl()).toBe(7200);
+
+    upstreamStore.updateSettings({ privacyMode: 'strict' });
+    expect(upstreamStore.getPrivacyMode()).toBe('strict');
   });
 });

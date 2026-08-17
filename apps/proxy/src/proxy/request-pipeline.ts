@@ -7,6 +7,7 @@ import { analyzeText } from '../presidio/client.js';
 import { policyEngine } from '../privacy/policy-engine.js';
 import { tokenizeText } from '../privacy/tokenizer.js';
 import { vault } from '../vault/redis-vault.js';
+import { upstreamStore } from '../config/upstream-store.js';
 
 export interface ProcessedRequest {
   sanitizedBody: string;
@@ -90,6 +91,19 @@ export async function processIncomingRequest(
 
   const sessionId = resolveSessionId(headers, parsedBody);
   const adapter = detectProtocol(url, headers, parsedBody);
+
+  // If in Bypass mode, skip privacy analysis entirely
+  if (upstreamStore.getPrivacyMode() === 'bypass') {
+    return {
+      sanitizedBody: bodyStr,
+      sessionId,
+      blocked: false,
+      tokensCreated: [],
+      entitiesDetected: [],
+      presidioLatencyMs: 0,
+      protocol: adapter?.type || 'unknown',
+    };
+  }
 
   if (!adapter) {
     return {
