@@ -6,6 +6,7 @@ import { processIncomingRequest } from '../../src/proxy/request-pipeline.js';
 import { processNonStreamingResponse } from '../../src/proxy/response-pipeline.js';
 import { openAIAdapter } from '../../src/protocols/openai.js';
 import { config } from '../../src/config/index.js';
+import { policyRegistry } from '../../src/config/policy.js';
 
 describe('Integration: Proxy Routes & Pipeline Flow', () => {
   let app: FastifyInstance;
@@ -104,5 +105,61 @@ describe('Integration: Proxy Routes & Pipeline Flow', () => {
 
     expect(detokenized).toContain(processed.tokensCreated[0]?.originalValue);
     expect(detokenized).not.toContain(tokenUsed);
+  });
+
+  it('End-to-End Pipeline: Reversible MASK policy restores masked strings back to plaintext', async () => {
+    policyRegistry.setPolicy({
+      entityType: 'EMAIL_ADDRESS',
+      action: 'MASK',
+      minScore: 0.7,
+      enabled: true,
+    });
+
+    const originalPrompt = 'Please contact satoshi.nakamoto@bitcoin.org immediately.';
+    const requestPayload = {
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: originalPrompt }],
+    };
+
+    const processed = await processIncomingRequest(
+      '/v1/chat/completions',
+      { 'x-privacy-session-id': 'e2e-mask-session' },
+      JSON.stringify(requestPayload),
+    );
+
+    expect(processed.blocked).toBe(false);
+    expect(processed.sanitizedBody).not.toContain('satoshi.nakamoto@bitcoin.org');
+    expect(processed.sanitizedBody).toContain('@bitcoin.org');
+
+    const maskedToken = processed.tokensCreated[0]?.token || '';
+    expect(maskedToken).toBeTruthy();
+
+    const upstreamResponseRaw = JSON.stringify({
+      choices: [
+        {
+          message: {
+            role: 'assistant',
+            content: `I will send an email to ${maskedToken} right away.`,
+          },
+        },
+      ],
+    });
+
+    const detokenized = await processNonStreamingResponse(
+      upstreamResponseRaw,
+      processed.sessionId,
+      openAIAdapter,
+    );
+
+    expect(detokenized).toContain('satoshi.nakamoto@bitcoin.org');
+    expect(detokenized).not.toContain(maskedToken);
+
+    // Reset policy back to TOKENIZE
+    policyRegistry.setPolicy({
+      entityType: 'EMAIL_ADDRESS',
+      action: 'TOKENIZE',
+      minScore: 0.75,
+      enabled: true,
+    });
   });
 });

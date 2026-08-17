@@ -101,7 +101,13 @@ export async function tokenizeText(
       result = replaceRange(result, entity.start, entity.end, '[REDACTED]');
     } else if (action === 'MASK') {
       const masked = maskValue(originalValue, entity.entity_type);
-      result = replaceRange(result, entity.start, entity.end, masked);
+      const token = await vault.getOrCreate(sessionId, entity.entity_type, originalValue, masked);
+      result = replaceRange(result, entity.start, entity.end, token);
+      mappings.push({
+        token,
+        originalValue,
+        entityType: entity.entity_type,
+      });
     } else if (action === 'TOKENIZE') {
       const token = await vault.getOrCreate(sessionId, entity.entity_type, originalValue);
       result = replaceRange(result, entity.start, entity.end, token);

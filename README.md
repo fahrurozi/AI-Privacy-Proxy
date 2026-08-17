@@ -156,7 +156,7 @@ Every detected entity type can be individually configured with one of the follow
 | Action | Behavior | Example Input | What AI Receives | What Client Receives | Best Used For |
 |---|---|---|---|---|---|
 | **`TOKENIZE`** | Substitutes PII with a cryptographic surrogate token and dynamically detokenizes it back in the AI response. | `Alice Walker` | `[8b4b7a8b:PERSON_001]` | `Alice Walker` (Restored) | Names, Emails, Crypto Wallets, IP Addresses |
-| **`MASK`** | Replaces sensitive characters with asterisks `*` while keeping contextual structure. | `satoshi@bitcoin.org` | `s***i@bitcoin.org` | `s***i@bitcoin.org` | Contact info where partial format matters |
+| **`MASK`** | Reversible contextual masking. Masks characters with `*` while keeping context (e.g. `@domain.com`), and automatically restores original plaintext on AI response. | `satoshi@bitcoin.org` | `s***i@bitcoin.org` | `satoshi@bitcoin.org` (Restored) | Contextual prompts where LLM needs domain/suffix clues without seeing raw PII |
 | **`REDACT`** | Permanently strips the sensitive value and replaces it with `[REDACTED]`. Irreversible. | `4532-1234-5678-9010` | `[REDACTED]` | `[REDACTED]` | Credit Cards, Social Security Numbers (SSN), Passports |
 | **`BLOCK`** | Aborts the request immediately at the proxy with HTTP 400. Upstream AI is never contacted. | `xprv9s21ZrQH143...` | *(Request Dropped)* | `HTTP 400: Request Blocked` | Private Keys, Seed Phrases, API Secrets, Passwords |
 | **`PASS`** | Passes the text as-is without any modification or sanitization. | `Open Source Project` | `Open Source Project` | `Open Source Project` | Non-sensitive or whitelisted entities |

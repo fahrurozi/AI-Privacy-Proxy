@@ -37,15 +37,11 @@ export async function detokenizeText(
   let restoredCount = 0;
   const restoredTokenMap = new Map<string, string>(); // full token -> original value
 
-  // Step 2: Exact match – full canonical tokens [prefix:TYPE_NNN]
-  const exactMatches = Array.from(result.matchAll(TOKEN_PATTERN));
-  const uniqueExact = Array.from(new Set(exactMatches.map((m) => m[0])));
-
-  for (const fullToken of uniqueExact) {
-    const originalValue = sessionTokens.get(fullToken);
-    if (originalValue !== undefined) {
-      restoredTokenMap.set(fullToken, originalValue);
-      result = result.replaceAll(fullToken, originalValue);
+  // Step 2: Exact match for all session tokens (both canonical [prefix:TYPE_NNN] and masked tokens like s***i@domain.com)
+  for (const [token, originalValue] of sessionTokens.entries()) {
+    if (result.includes(token)) {
+      restoredTokenMap.set(token, originalValue);
+      result = result.replaceAll(token, originalValue);
       restoredCount += 1;
     }
   }

@@ -4,7 +4,7 @@ import { ActiveSession } from '@ai-privacy-proxy/shared';
 import { config } from '../config/index.js';
 
 export interface TokenVault {
-  getOrCreate(sessionId: string, entityType: string, value: string): Promise<string>;
+  getOrCreate(sessionId: string, entityType: string, value: string, customToken?: string): Promise<string>;
   restore(sessionId: string, token: string): Promise<string | null>;
   listSessionTokens(sessionId: string): Promise<Map<string, string>>;
   listSessions(): Promise<ActiveSession[]>;
@@ -77,7 +77,7 @@ export class RedisTokenVault implements TokenVault {
     return true;
   }
 
-  async getOrCreate(sessionId: string, entityType: string, value: string): Promise<string> {
+  async getOrCreate(sessionId: string, entityType: string, value: string, customToken?: string): Promise<string> {
     const ttl = config.VAULT_TTL_SECONDS;
     const prefix = generateSessionPrefix(sessionId);
     const hash = hashNormalized(entityType, value);
@@ -90,8 +90,11 @@ export class RedisTokenVault implements TokenVault {
           return existingToken;
         }
 
-        const counter = await this.redis.incr(`privacy:v1:session:${sessionId}:counter:${entityType}`);
-        const token = `[${prefix}:${entityType}_${String(counter).padStart(3, '0')}]`;
+        let token = customToken;
+        if (!token) {
+          const counter = await this.redis.incr(`privacy:v1:session:${sessionId}:counter:${entityType}`);
+          token = `[${prefix}:${entityType}_${String(counter).padStart(3, '0')}]`;
+        }
         const tokenKey = `privacy:v1:session:${sessionId}:token:${token}`;
         const sessionMetaKey = `privacy:v1:sessions:meta:${sessionId}`;
 
@@ -115,11 +118,13 @@ export class RedisTokenVault implements TokenVault {
       return memLookup.token;
     }
 
-    const counterKey = `${sessionId}:${entityType}`;
-    const counter = (this.memoryCounters.get(counterKey) || 0) + 1;
-    this.memoryCounters.set(counterKey, counter);
-
-    const token = `[${prefix}:${entityType}_${String(counter).padStart(3, '0')}]`;
+    let token = customToken;
+    if (!token) {
+      const counterKey = `${sessionId}:${entityType}`;
+      const counter = (this.memoryCounters.get(counterKey) || 0) + 1;
+      this.memoryCounters.set(counterKey, counter);
+      token = `[${prefix}:${entityType}_${String(counter).padStart(3, '0')}]`;
+    }
     const tokenKey = `privacy:v1:session:${sessionId}:token:${token}`;
 
     this.memoryStore.set(tokenKey, { value, expiresAt: exp });

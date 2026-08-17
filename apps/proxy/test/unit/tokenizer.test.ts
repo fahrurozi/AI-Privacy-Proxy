@@ -22,7 +22,7 @@ describe('Tokenizer & Policy Engine', () => {
     expect(maskValue('John Doe')).toBe('J***n D***e');
   });
 
-  it('should mask entities when policy action is MASK', async () => {
+  it('should mask entities when policy action is MASK and record reversible token in vault', async () => {
     // Set EMAIL_ADDRESS policy to MASK
     policyRegistry.setPolicy({
       entityType: 'EMAIL_ADDRESS',
@@ -40,7 +40,8 @@ describe('Tokenizer & Policy Engine', () => {
     expect(result.sanitizedText).not.toContain('satoshi.nakamoto@bitcoin.org');
     expect(result.sanitizedText).toContain('@bitcoin.org');
     expect(result.sanitizedText).toMatch(/s[*]+o@bitcoin\.org/);
-    expect(result.mappings.length).toBe(0); // MASK does not require token mapping in vault
+    expect(result.mappings.length).toBe(1); // MASK now creates a reversible vault token mapping
+    expect(result.mappings[0]?.originalValue).toBe('satoshi.nakamoto@bitcoin.org');
 
     // Restore back to TOKENIZE for subsequent tests
     policyRegistry.setPolicy({

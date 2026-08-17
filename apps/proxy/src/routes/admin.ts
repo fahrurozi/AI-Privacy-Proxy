@@ -285,9 +285,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const entries: { token: string; entityType: string; originalValue: string }[] = [];
     for (const [token, originalValue] of tokenMap.entries()) {
       const typeMatch = token.match(/\[(?:[a-zA-Z0-9_-]+:)?([A-Z_]+)_\d{3}\]/);
+      let entityType = typeMatch?.[1] || 'UNKNOWN';
+      if (entityType === 'UNKNOWN') {
+        if (token.includes('@')) entityType = 'EMAIL_ADDRESS';
+        else if (token.startsWith('0x')) entityType = 'ETHEREUM_ADDRESS';
+        else if (token.includes('****')) entityType = 'CREDIT_CARD';
+        else if (token.includes('*')) entityType = 'MASKED_PII';
+      }
       entries.push({
         token,
-        entityType: typeMatch?.[1] || 'UNKNOWN',
+        entityType,
         originalValue,
       });
     }
