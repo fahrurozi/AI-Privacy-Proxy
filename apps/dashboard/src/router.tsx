@@ -123,17 +123,17 @@ export function DashboardApp() {
 
   return (
     <div className="flex h-screen bg-[#090d16] text-slate-100 overflow-hidden font-sans">
-      {/* Mobile Sidebar Backdrop */}
-      {mobileSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
+      {/* Mobile Sidebar Backdrop with smooth fade */}
+      <div
+        className={`fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ease-out ${
+          mobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setMobileSidebarOpen(false)}
+      />
 
-      {/* Sidebar */}
+      {/* Sidebar with smooth slide animation */}
       <aside
-        className={`fixed lg:static top-0 left-0 bottom-0 w-64 bg-[#0c1220] border-r border-slate-800/80 z-50 flex flex-col transition-transform duration-200 ease-in-out ${
+        className={`fixed lg:static top-0 left-0 bottom-0 w-64 bg-[#0c1220] border-r border-slate-800/80 z-50 flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
