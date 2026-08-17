@@ -672,16 +672,53 @@ export function PolicyPage() {
         }
       >
         <form onSubmit={handleAddPolicy} className="space-y-4">
+          {/* Quick Presets */}
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Entity Type</label>
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 block mb-2">
+              Common Presidio & Domain Presets
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { name: 'LOCATION', desc: 'Geographical locations, cities, and physical addresses' },
+                { name: 'DATE_TIME', desc: 'Absolute dates, times, and timestamps' },
+                { name: 'IBAN_CODE', desc: 'International Bank Account Numbers' },
+                { name: 'SWIFT_CODE', desc: 'Bank BIC / SWIFT routing codes' },
+                { name: 'MEDICAL_LICENSE', desc: 'Healthcare practitioner identifiers' },
+                { name: 'US_DRIVER_LICENSE', desc: 'US State Driver license numbers' },
+                { name: 'TAX_ID', desc: 'National tax identifier / TIN' },
+                { name: 'NIK_KTP', desc: 'Indonesian 16-digit national ID' },
+              ].map((preset) => (
+                <button
+                  key={preset.name}
+                  type="button"
+                  onClick={() => {
+                    setNewEntity(preset.name);
+                    if (!newDesc) setNewDesc(preset.desc);
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-mono bg-slate-950 hover:bg-slate-800 text-blue-300 rounded-lg border border-slate-800 transition"
+                  title={preset.desc}
+                >
+                  +{preset.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              Entity Type <span className="text-slate-500 font-normal font-sans">(UPPERCASE Identifier)</span>
+            </label>
             <input
               type="text"
-              placeholder="e.g. PASSPORT_NUMBER or DRIVER_LICENSE"
+              placeholder="e.g. LOCATION, IBAN_CODE, NIK_KTP"
               value={newEntity}
               onChange={(e) => setNewEntity(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
               required
             />
+            <p className="text-[11px] text-slate-500 mt-1">
+              Must match an entity detected by Presidio (e.g. <code className="text-slate-400">LOCATION</code>) or a custom entity from <strong className="text-slate-400">Custom Recognizers</strong>.
+            </p>
           </div>
 
           <div>
