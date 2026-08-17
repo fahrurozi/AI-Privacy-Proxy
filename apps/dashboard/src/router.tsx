@@ -7,6 +7,7 @@ import { SessionsPage } from './routes/sessions.js';
 import { AuditPage } from './routes/audit.js';
 import { SettingsPage } from './routes/settings.js';
 import { LoginPage } from './routes/login.js';
+import { GuideModal } from './components/GuideModal.js';
 import { isAuthenticated, clearAdminKey } from './lib/api.js';
 import {
   LayoutDashboard,
@@ -20,6 +21,7 @@ import {
   X,
   LogOut,
   User,
+  BookOpen,
 } from 'lucide-react';
 
 const VALID_PAGES = ['overview', 'monitoring', 'policy', 'recognizers', 'sessions', 'audit', 'settings'];
@@ -46,6 +48,7 @@ export function DashboardApp() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => isAuthenticated());
   const [currentPage, setCurrentPage] = useState<string>(() => getPageFromUrl());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   const navigateTo = useCallback((pageId: string) => {
     if (!VALID_PAGES.includes(pageId)) return;
@@ -216,9 +219,21 @@ export function DashboardApp() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Guide Button on the LEFT of Safe Token Vault */}
+            <button
+              onClick={() => setShowGuideModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 text-blue-300 text-xs font-semibold rounded-lg border border-blue-500/30 transition shadow-sm"
+              title="Buka panduan lengkap sistem Privacy Proxy"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-blue-400" /> Guide
+            </button>
+
+            {/* Safe Token Vault Badge */}
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               Safe Token Vault
             </span>
+
+            {/* Logout Button */}
             <button
               onClick={handleLogout}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-red-500/10 hover:text-red-300 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 hover:border-red-500/20 transition"
@@ -234,6 +249,12 @@ export function DashboardApp() {
           {renderPage()}
         </main>
       </div>
+
+      {/* Interactive Multi-step Guide Modal */}
+      <GuideModal
+        isOpen={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
     </div>
   );
 }
