@@ -286,16 +286,51 @@ export function ProvidersPage() {
         throw new Error(errMsg);
       }
 
-      const data = await response.json();
-      const assistantText =
-        data.choices?.[0]?.message?.content ||
-        data.content?.[0]?.text ||
-        JSON.stringify(data, null, 2);
+      const contentType = response.headers.get('content-type') || '';
+      let assistantText = '';
+      let tokensUsed: number | undefined;
+
+      if (contentType.includes('text/event-stream')) {
+        const text = await response.text();
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+            try {
+              const chunk = JSON.parse(trimmed.slice(6));
+              const delta =
+                chunk.choices?.[0]?.delta?.content ||
+                chunk.choices?.[0]?.text ||
+                chunk.delta?.text ||
+                '';
+              assistantText += delta;
+              if (chunk.usage?.total_tokens) {
+                tokensUsed = chunk.usage.total_tokens;
+              }
+            } catch {}
+          }
+        }
+        if (!assistantText.trim()) {
+          assistantText = text;
+        }
+      } else {
+        const rawText = await response.text();
+        try {
+          const data = JSON.parse(rawText);
+          assistantText =
+            data.choices?.[0]?.message?.content ||
+            data.content?.[0]?.text ||
+            (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+          tokensUsed = data.usage?.total_tokens;
+        } catch {
+          assistantText = rawText;
+        }
+      }
 
       setPlaygroundResponse({
         text: assistantText,
         latencyMs,
-        tokensUsed: data.usage?.total_tokens,
+        tokensUsed,
         status: response.status,
       });
     } catch (err: any) {

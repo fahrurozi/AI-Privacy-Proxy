@@ -72,8 +72,13 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       reply.header('Cache-Control', 'no-cache');
       reply.header('Connection', 'keep-alive');
 
+      const rawStream =
+        typeof (upstreamResponse.body as any)?.getReader === 'function'
+          ? Readable.fromWeb(upstreamResponse.body as any)
+          : (upstreamResponse.body as unknown as Readable);
+
       const transformedStream = createStreamingResponseTransformer(
-        Readable.fromWeb(upstreamResponse.body as any),
+        rawStream,
         processed.sessionId,
         requestId,
         adapter,
