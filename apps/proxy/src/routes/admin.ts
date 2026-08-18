@@ -408,7 +408,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       } else if (action === 'REDACT') {
         transformed = transformed.slice(0, ent.start) + `[REDACTED_${ent.entity_type}]` + transformed.slice(ent.end);
       } else if (action === 'MASK') {
-        const masked = clientMaskSim(match);
+        const masked = maskValue(match, ent.entity_type);
         transformed = transformed.slice(0, ent.start) + masked + transformed.slice(ent.end);
       } else if (action === 'TOKENIZE') {
         transformed = transformed.slice(0, ent.start) + `[PREFIX:${ent.entity_type}_001]` + transformed.slice(ent.end);

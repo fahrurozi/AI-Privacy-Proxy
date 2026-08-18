@@ -26,6 +26,10 @@ import {
   Cpu,
   Layers,
   Activity,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  X,
 } from 'lucide-react';
 
 // ── Color-coded entity type badge ────────────────────────────────────────────
@@ -140,6 +144,24 @@ export function ProvidersPage() {
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [customModelInput, setCustomModelInput] = useState('');
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+        setIsModelDropdownOpen(false);
+      }
+    };
+    if (isModelDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isModelDropdownOpen]);
 
   // Playground prompt & execution state
   const [playgroundPrompt, setPlaygroundPrompt] = useState(
@@ -213,6 +235,8 @@ export function ProvidersPage() {
     setAvailableModels([]);
     setSelectedModel('');
     setCustomModelInput('');
+    setModelSearchQuery('');
+    setIsModelDropdownOpen(false);
     setPlaygroundResponse(null);
     setTokenLegend([]);
     setPlaygroundError(null);
@@ -858,15 +882,15 @@ export function ProvidersPage() {
               )}
             </div>
 
-            {/* Step 2: Model Selection (Populated dynamically from router) */}
+            {/* Step 2: Model Selection (Populated dynamically from router with Search) */}
             <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-on-surface">
-                  2. Select AI Model
+                <label className="block text-xs font-semibold text-on-surface flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-primary" /> 2. Select AI Model
                 </label>
                 {availableModels.length > 0 ? (
                   <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/50">
-                    {availableModels.length} models from router
+                    {availableModels.length} models loaded
                   </span>
                 ) : (
                   <span className="text-[10px] text-on-surface-variant">
@@ -876,39 +900,202 @@ export function ProvidersPage() {
               </div>
 
               {availableModels.length > 0 ? (
-                <div className="space-y-2">
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500"
+                <div className="space-y-2 relative" ref={modelDropdownRef}>
+                  {/* Dropdown Trigger Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                    className="w-full flex items-center justify-between bg-surface-container border border-outline-variant/60 hover:border-primary/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono transition-colors focus:outline-none focus:border-primary cursor-pointer text-left"
                   >
-                    {availableModels.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                    <option value="custom">-- Enter Custom Model ID --</option>
-                  </select>
+                    <div className="flex items-center gap-2 truncate">
+                      <Cpu className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+                      <span className="truncate">
+                        {selectedModel === 'custom'
+                          ? `Custom: ${customModelInput || '(Enter below)'}`
+                          : selectedModel || 'Select a model...'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-on-surface-variant shrink-0 ml-2">
+                      <span className="text-[10px] text-on-surface-variant/70">
+                        {availableModels.indexOf(selectedModel) >= 0 ? `#${availableModels.indexOf(selectedModel) + 1}` : ''}
+                      </span>
+                      {isModelDropdownOpen ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </div>
+                  </button>
 
+                  {/* Searchable Dropdown Popover */}
+                  {isModelDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-surface-container-high border border-outline-variant shadow-2xl rounded-m3-lg overflow-hidden flex flex-col max-h-72 animate-in fade-in zoom-in-95 duration-100">
+                      {/* Search Bar Input */}
+                      <div className="p-2 border-b border-outline-variant/60 bg-surface-container flex items-center gap-2 sticky top-0 z-10">
+                        <Search className="w-3.5 h-3.5 text-on-surface-variant shrink-0 ml-1" />
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Search models (e.g. gpt-4, claude, llama, sonnet)..."
+                          value={modelSearchQuery}
+                          onChange={(e) => setModelSearchQuery(e.target.value)}
+                          className="w-full bg-transparent text-xs text-on-surface font-mono placeholder:text-on-surface-variant/50 focus:outline-none"
+                        />
+                        {modelSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setModelSearchQuery('')}
+                            className="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant hover:text-on-surface"
+                            title="Clear search"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Filter Count & Quick Info */}
+                      <div className="px-3 py-1.5 bg-surface-container/40 border-b border-outline-variant/40 flex items-center justify-between text-[10px] text-on-surface-variant">
+                        <span>
+                          {modelSearchQuery ? (
+                            <>
+                              Matched{' '}
+                              <strong className="text-on-surface">
+                                {availableModels.filter((m) =>
+                                  m.toLowerCase().includes(modelSearchQuery.toLowerCase().trim())
+                                ).length}
+                              </strong>{' '}
+                              of {availableModels.length} models
+                            </>
+                          ) : (
+                            `${availableModels.length} models available`
+                          )}
+                        </span>
+                        {modelSearchQuery && (
+                          <span className="text-[9px] uppercase tracking-wider text-primary font-semibold">
+                            Filtered
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Scrollable Model List */}
+                      <div className="overflow-y-auto max-h-48 divide-y divide-outline-variant/20">
+                        {availableModels
+                          .filter((m) =>
+                            m.toLowerCase().includes(modelSearchQuery.toLowerCase().trim())
+                          )
+                          .map((m) => {
+                            const isSelected = selectedModel === m;
+                            return (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedModel(m);
+                                  setIsModelDropdownOpen(false);
+                                  setModelSearchQuery('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs font-mono flex items-center justify-between hover:bg-surface-container-highest/80 transition-colors cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-primary/10 text-primary font-medium'
+                                    : 'text-on-surface'
+                                }`}
+                              >
+                                <span className="truncate pr-2">{m}</span>
+                                {isSelected && (
+                                  <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                                )}
+                              </button>
+                            );
+                          })}
+
+                        {/* If search yields 0 results */}
+                        {availableModels.filter((m) =>
+                          m.toLowerCase().includes(modelSearchQuery.toLowerCase().trim())
+                        ).length === 0 && (
+                          <div className="p-3 text-center space-y-2">
+                            <p className="text-xs text-on-surface-variant">
+                              No models matching "{modelSearchQuery}"
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedModel('custom');
+                                setCustomModelInput(modelSearchQuery.trim());
+                                setIsModelDropdownOpen(false);
+                                setModelSearchQuery('');
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-m3-md font-mono cursor-pointer"
+                            >
+                              <Pencil className="w-3 h-3" />
+                              Use "{modelSearchQuery.trim()}" as custom model
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Custom Model Option */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedModel('custom');
+                            setIsModelDropdownOpen(false);
+                            setModelSearchQuery('');
+                          }}
+                          className={`w-full text-left px-3 py-2 text-xs font-mono flex items-center justify-between border-t border-outline-variant/60 hover:bg-surface-container-highest/80 transition-colors cursor-pointer ${
+                            selectedModel === 'custom'
+                              ? 'bg-primary/10 text-primary font-medium'
+                              : 'text-on-surface-variant hover:text-on-surface'
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Pencil className="w-3 h-3 text-primary/70" />
+                            -- Enter Custom Model ID --
+                          </span>
+                          {selectedModel === 'custom' && (
+                            <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Model Input (if selected) */}
                   {selectedModel === 'custom' && (
-                    <input
-                      type="text"
-                      placeholder="e.g. meta-llama/llama-3-70b"
-                      value={customModelInput}
-                      onChange={(e) => setCustomModelInput(e.target.value)}
-                      className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500"
-                    />
+                    <div className="pt-1">
+                      <input
+                        type="text"
+                        placeholder="Enter custom model ID (e.g. meta-llama/llama-3-70b)"
+                        value={customModelInput}
+                        onChange={(e) => setCustomModelInput(e.target.value)}
+                        className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-primary"
+                        autoFocus
+                      />
+                    </div>
                   )}
                 </div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <input
                     type="text"
                     placeholder="Enter model ID (e.g. gpt-4o, claude-3-5-sonnet, deepseek-chat)"
                     value={customModelInput}
                     onChange={(e) => setCustomModelInput(e.target.value)}
-                    className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-primary"
                   />
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] text-on-surface-variant/80 mr-1">Presets:</span>
+                    {['gpt-4o', 'gpt-4o-mini', 'claude-3-5-sonnet-20241022', 'deepseek-chat', 'gemini-1.5-pro'].map(
+                      (preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setCustomModelInput(preset)}
+                          className="text-[10px] font-mono px-2 py-0.5 bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-outline-variant/50 rounded-m3-xs transition-colors cursor-pointer"
+                        >
+                          {preset}
+                        </button>
+                      )
+                    )}
+                  </div>
                   <p className="text-[10px] text-on-surface-variant/80">
                     Tip: Click <strong>Test Connection</strong> above to automatically fetch available models from this router.
                   </p>
