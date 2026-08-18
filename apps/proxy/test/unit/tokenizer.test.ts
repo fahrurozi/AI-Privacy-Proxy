@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { tokenizeText, maskValue } from '../../src/privacy/tokenizer.js';
 import { PolicyEngine } from '../../src/privacy/policy-engine.js';
 import { RedisTokenVault } from '../../src/vault/redis-vault.js';
@@ -95,5 +95,19 @@ describe('Tokenizer & Policy Engine', () => {
     expect(result.blocked).toBe(false);
     const tokens = result.mappings.map((m) => m.token);
     expect(tokens[0]).toBe(tokens[1]);
+  });
+
+  it('only hits the vault once per unique value even though lookups run concurrently', async () => {
+    const getOrCreateSpy = vi.spyOn(vault, 'getOrCreate');
+
+    const text = 'Transfer from 0x71C8F794B32145429631994304244a1234567890 to 0x71C8F794B32145429631994304244a1234567890 now.';
+    const entities = await analyzeTextWithFallback(text);
+
+    const result = await tokenizeText(text, entities, policyEngine, vault, sessionId);
+
+    expect(result.blocked).toBe(false);
+    expect(entities.length).toBeGreaterThanOrEqual(2);
+    // Two entities share the same normalized value -> only one vault round-trip.
+    expect(getOrCreateSpy).toHaveBeenCalledTimes(1);
   });
 });

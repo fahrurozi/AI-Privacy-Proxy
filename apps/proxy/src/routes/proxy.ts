@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
 import { processIncomingRequest, detectProtocol } from '../proxy/request-pipeline.js';
-import { forwardUpstreamRequest } from '../proxy/upstream.js';
+import { forwardUpstreamRequest, UpstreamTimeoutError } from '../proxy/upstream.js';
 import {
   processNonStreamingResponse,
   createStreamingResponseTransformer,
@@ -178,6 +178,8 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
 
     return reply.status(upstreamStatus).send(detokenizedBody);
   } catch (err: any) {
+    const isTimeout = err instanceof UpstreamTimeoutError;
+
     metricsTracker.recordRequest({
       requestId,
       sessionId: processed.sessionId,
@@ -187,10 +189,20 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
       presidioLatencyMs: processed.presidioLatencyMs,
       proxyLatencyMs: Date.now() - startTime,
       path,
-      upstreamStatus: 502,
+      upstreamStatus: isTimeout ? 504 : 502,
       clientIp: req.ip,
       providerId,
     });
+
+    if (isTimeout) {
+      return reply.status(504).send({
+        error: {
+          type: 'upstream_timeout',
+          code: 'gateway_timeout',
+          message: err.message,
+        },
+      });
+    }
 
     return reply.status(502).send({
       error: {

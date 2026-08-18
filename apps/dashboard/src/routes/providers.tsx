@@ -186,6 +186,7 @@ export function ProvidersPage() {
   }, [isSendingRequest]);
   const [playgroundResponse, setPlaygroundResponse] = useState<{
     text: string;
+    reasoning?: string;
     sanitizedPrompt?: string;
     rawUpstreamResponse?: string;
     latencyMs: number;
@@ -450,11 +451,31 @@ export function ProvidersPage() {
         }
       }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: reqHeaders,
-        body: JSON.stringify(payload),
-      });
+      // Give the request a generous but finite budget so a slow/hung upstream
+      // (more likely with long prompts) surfaces as a clear error instead of
+      // an indefinite spinner.
+      const PLAYGROUND_REQUEST_TIMEOUT_MS = 65000;
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), PLAYGROUND_REQUEST_TIMEOUT_MS);
+
+      let response: Response;
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: reqHeaders,
+          body: JSON.stringify(payload),
+          signal: abortController.signal,
+        });
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          throw new Error(
+            `No response from the proxy/upstream within ${PLAYGROUND_REQUEST_TIMEOUT_MS / 1000}s. The prompt may be too long, or the upstream provider is unresponsive.`,
+          );
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -503,6 +524,7 @@ export function ProvidersPage() {
       const sessionId = response.headers.get('x-privacy-session-id') || '';
       const contentType = response.headers.get('content-type') || '';
       let assistantText = '';
+      let reasoningText = '';
       let tokensUsed: number | undefined;
 
       const isEventStream = contentType.includes('text/event-stream');
@@ -511,6 +533,7 @@ export function ProvidersPage() {
         // Open the inspector panel immediately so user sees incremental text stream
         setPlaygroundResponse({
           text: '',
+          reasoning: '',
           sanitizedPrompt: sanitizedPrompt || playgroundPrompt,
           rawUpstreamResponse: '',
           latencyMs: 0,
@@ -560,6 +583,19 @@ export function ProvidersPage() {
                     prev ? { ...prev, text: assistantText } : null
                   );
                 }
+
+                // Reasoning models (e.g. deepseek-reasoner, o1-style) stream their
+                // chain-of-thought separately via delta.reasoning_content before
+                // the actual answer. Capture it so it doesn't fall through to the
+                // "no delta found" raw-dump fallback below.
+                const reasoningDelta = chunk.choices?.[0]?.delta?.reasoning_content || '';
+                if (reasoningDelta) {
+                  reasoningText += reasoningDelta;
+                  setPlaygroundResponse((prev) =>
+                    prev ? { ...prev, reasoning: reasoningText } : null
+                  );
+                }
+
                 if (chunk.usage?.total_tokens) {
                   tokensUsed = chunk.usage.total_tokens;
                 }
@@ -576,8 +612,10 @@ export function ProvidersPage() {
           }
         }
 
-        // If no SSE delta was found, fallback to parsing full raw stream as JSON
-        if (!assistantText.trim() && fullRawStream.trim()) {
+        // If no SSE delta (content or reasoning) was found at all, fallback to
+        // parsing full raw stream as JSON. Otherwise we already have something
+        // readable to show and must not overwrite it with the raw SSE dump.
+        if (!assistantText.trim() && !reasoningText.trim() && fullRawStream.trim()) {
           try {
             const data = JSON.parse(fullRawStream);
             assistantText =
@@ -604,7 +642,12 @@ export function ProvidersPage() {
       }
 
       if (!rawUpstreamResponse) {
-        rawUpstreamResponse = assistantText;
+        // The backend only sends x-privacy-raw-upstream-body for non-streaming
+        // responses. For streaming, fall back to whatever we captured locally -
+        // preferring the final answer, but still showing reasoning-only output
+        // (e.g. a reasoning model that hadn't reached its final answer yet)
+        // instead of leaving this tab blank.
+        rawUpstreamResponse = assistantText || reasoningText;
       }
 
       const totalMs = Date.now() - startTime;
@@ -614,6 +657,7 @@ export function ProvidersPage() {
 
       setPlaygroundResponse({
         text: assistantText,
+        reasoning: reasoningText,
         sanitizedPrompt: sanitizedPrompt || playgroundPrompt,
         rawUpstreamResponse: rawUpstreamResponse,
         latencyMs: totalMs,
@@ -637,7 +681,11 @@ export function ProvidersPage() {
         } catch {}
       }
     } catch (err: any) {
-      setPlaygroundError(err.message || 'Failed to receive response from provider.');
+      if (err?.name === 'AbortError') {
+        setPlaygroundError('The stream stalled and was aborted after taking too long. The prompt may be too long, or the upstream provider stopped responding mid-stream.');
+      } else {
+        setPlaygroundError(err.message || 'Failed to receive response from provider.');
+      }
     } finally {
       setIsSendingRequest(false);
     }
@@ -1507,6 +1555,16 @@ export function ProvidersPage() {
                         Detokenizer: {playgroundResponse.proxyOverheadMs ? `${playgroundResponse.proxyOverheadMs}ms` : '<1ms'} • Total: {playgroundResponse.latencyMs}ms
                       </span>
                     </div>
+                    {playgroundResponse.reasoning && (
+                      <details className="text-[11px]" open={isSendingRequest && !playgroundResponse.text}>
+                        <summary className="cursor-pointer select-none font-semibold text-on-surface-variant">
+                          Model reasoning ({playgroundResponse.reasoning.length} chars, not part of the final answer)
+                        </summary>
+                        <div className="mt-1 p-3 bg-surface-container/60 border border-on-surface-variant/20 rounded-m3-lg font-mono text-xs text-on-surface-variant whitespace-pre-wrap leading-relaxed italic">
+                          {playgroundResponse.reasoning}
+                        </div>
+                      </details>
+                    )}
                     <div className="p-3.5 bg-surface-container border border-emerald-800/40 rounded-m3-lg font-mono text-xs text-on-surface whitespace-pre-wrap leading-relaxed min-h-[80px]">
                       {playgroundResponse.text ? (
                         <>
@@ -1518,7 +1576,7 @@ export function ProvidersPage() {
                       ) : isSendingRequest ? (
                         <div className="flex items-center gap-2 text-on-surface-variant italic">
                           <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                          <span>Connecting to upstream stream & waiting for first token...</span>
+                          <span>{playgroundResponse.reasoning ? 'Model is reasoning, waiting for final answer...' : 'Connecting to upstream stream & waiting for first token...'}</span>
                         </div>
                       ) : (
                         <span className="text-on-surface-variant italic">Empty response</span>

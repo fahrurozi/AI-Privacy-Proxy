@@ -1,5 +1,13 @@
 import { ReadableStream } from 'stream/web';
 import { upstreamStore } from '../config/upstream-store.js';
+import { config } from '../config/index.js';
+
+export class UpstreamTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Upstream did not respond within ${timeoutMs}ms`);
+    this.name = 'UpstreamTimeoutError';
+  }
+}
 
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -58,16 +66,33 @@ export async function forwardUpstreamRequest(
     cleanHeaders['content-type'] = cleanHeaders['content-type'] || 'application/json';
   }
 
+  // Only bounds time-to-first-byte (headers). Once fetch() resolves, the
+  // response body/stream is free to keep flowing for as long as it needs.
+  const timeoutMs = config.UPSTREAM_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   const fetchOptions: RequestInit = {
     method,
     headers: cleanHeaders,
+    signal: controller.signal,
   };
 
   if (method !== 'GET' && method !== 'HEAD' && body) {
     fetchOptions.body = body as any;
   }
 
-  const res = await fetch(targetUrl, fetchOptions);
+  let res: Response;
+  try {
+    res = await fetch(targetUrl, fetchOptions);
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new UpstreamTimeoutError(timeoutMs);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const responseHeaders: Record<string, string> = {};
   for (const [k, v] of res.headers.entries()) {

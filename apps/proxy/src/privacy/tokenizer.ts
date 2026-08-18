@@ -86,6 +86,31 @@ export async function tokenizeText(
     .filter((e) => e.action !== 'PASS')
     .sort((a, b) => b.entity.start - a.entity.start);
 
+  // Resolve every vault token up-front, concurrently. Values are deduped by
+  // (action, entityType, normalized value) so a repeated PII value (e.g. the
+  // same email mentioned twice) is only looked up/created once - avoiding a
+  // race where two concurrent getOrCreate() calls for the same value would
+  // otherwise mint two different tokens for it.
+  const tokenPromises = new Map<string, Promise<string>>();
+
+  for (const { entity, action } of sorted) {
+    if (action !== 'MASK' && action !== 'TOKENIZE') continue;
+    if (entity.start < 0 || entity.end > text.length || entity.start >= entity.end) continue;
+
+    const originalValue = text.slice(entity.start, entity.end);
+    const dedupeKey = `${action}:${entity.entity_type.toUpperCase()}:${originalValue.trim().toLowerCase()}`;
+
+    if (!tokenPromises.has(dedupeKey)) {
+      const promise =
+        action === 'MASK'
+          ? vault.getOrCreate(sessionId, entity.entity_type, originalValue, maskValue(originalValue, entity.entity_type))
+          : vault.getOrCreate(sessionId, entity.entity_type, originalValue);
+      tokenPromises.set(dedupeKey, promise);
+    }
+  }
+
+  await Promise.all(tokenPromises.values());
+
   let result = text;
   const mappings: TokenEntry[] = [];
 
@@ -99,17 +124,9 @@ export async function tokenizeText(
 
     if (action === 'REDACT') {
       result = replaceRange(result, entity.start, entity.end, '[REDACTED]');
-    } else if (action === 'MASK') {
-      const masked = maskValue(originalValue, entity.entity_type);
-      const token = await vault.getOrCreate(sessionId, entity.entity_type, originalValue, masked);
-      result = replaceRange(result, entity.start, entity.end, token);
-      mappings.push({
-        token,
-        originalValue,
-        entityType: entity.entity_type,
-      });
-    } else if (action === 'TOKENIZE') {
-      const token = await vault.getOrCreate(sessionId, entity.entity_type, originalValue);
+    } else if (action === 'MASK' || action === 'TOKENIZE') {
+      const dedupeKey = `${action}:${entity.entity_type.toUpperCase()}:${originalValue.trim().toLowerCase()}`;
+      const token = await tokenPromises.get(dedupeKey)!;
       result = replaceRange(result, entity.start, entity.end, token);
       mappings.push({
         token,

@@ -141,16 +141,26 @@ export async function processIncomingRequest(
   }
 
   const fields = adapter.extractRequestFields(parsedBody);
+  const nonEmptyFields = fields.filter((f) => f.text && f.text.trim().length > 0);
+
+  // Run Presidio analysis for every field concurrently instead of one-at-a-time.
+  // With a long conversation history this is the dominant source of latency
+  // (each call is a network round-trip + NLP pass), so doing them in parallel
+  // turns "sum of N calls" into "the slowest single call".
+  const analyzedFields = await Promise.all(
+    nonEmptyFields.map(async (field) => {
+      const { entities, latencyMs } = await analyzeText(field.text);
+      return { field, entities, latencyMs };
+    }),
+  );
+
   const allTokens: TokenEntry[] = [];
   const allEntities: string[] = [];
-  let totalPresidioLatency = 0;
+  // Wall-clock time contributed by Presidio is now bounded by the slowest
+  // field, not the sum of all of them.
+  const totalPresidioLatency = analyzedFields.reduce((max, f) => Math.max(max, f.latencyMs), 0);
 
-  for (const field of fields) {
-    if (!field.text || field.text.trim().length === 0) continue;
-
-    const { entities, latencyMs } = await analyzeText(field.text);
-    totalPresidioLatency += latencyMs;
-
+  for (const { field, entities } of analyzedFields) {
     if (entities.length === 0) continue;
 
     for (const ent of entities) {

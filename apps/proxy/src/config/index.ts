@@ -41,6 +41,10 @@ const ConfigSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
   PRIVACY_MODE: z.enum(['strict', 'balanced', 'bypass']).default('strict'),
   VAULT_TTL_SECONDS: z.coerce.number().default(3600),
+  // Bounds how long we wait for the upstream provider to respond with headers
+  // (i.e. time-to-first-byte / time-to-first-token for streams). Does not cap
+  // how long an already-started stream may keep flowing.
+  UPSTREAM_TIMEOUT_MS: z.coerce.number().default(60000),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   ADMIN_API_KEY: z.string().default('admin-secret-key-change-me'),
   ALLOWED_ORIGINS: z.string().default(''),
@@ -68,6 +72,7 @@ try {
     REDIS_URL: process.env['REDIS_URL'] || 'redis://localhost:6379',
     PRIVACY_MODE: validMode,
     VAULT_TTL_SECONDS: process.env['VAULT_TTL_SECONDS'] || 3600,
+    UPSTREAM_TIMEOUT_MS: process.env['UPSTREAM_TIMEOUT_MS'] || 60000,
     LOG_LEVEL: process.env['LOG_LEVEL'] || 'info',
     ADMIN_API_KEY: process.env['ADMIN_API_KEY'] || 'admin-secret-key-change-me',
     ALLOWED_ORIGINS: process.env['ALLOWED_ORIGINS'] || '',
