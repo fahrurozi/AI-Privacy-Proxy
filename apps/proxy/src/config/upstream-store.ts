@@ -117,6 +117,8 @@ class UpstreamStore {
       }
       if (typeof data.injectPreservationHint === 'boolean') {
         this.injectPreservationHint = data.injectPreservationHint;
+      } else {
+        this.injectPreservationHint = true;
       }
       if (typeof data.customPreservationHint === 'string') {
         this.customPreservationHint = data.customPreservationHint;

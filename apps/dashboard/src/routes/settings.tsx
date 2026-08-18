@@ -196,6 +196,9 @@ export function SettingsPage() {
                 <label className="text-xs sm:text-sm font-bold text-on-surface">
                   Smart Token Preservation Directive (Just-In-Time)
                 </label>
+                <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/50">
+                  Default: Enabled
+                </span>
                 <div className="relative group flex items-center">
                   <HelpCircle className="w-4 h-4 text-on-surface-variant/70 group-hover:text-primary transition-colors cursor-help" />
                   <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:flex flex-col items-center w-72 p-3 bg-surface-container-highest text-on-surface text-[11px] leading-relaxed rounded-m3-md border border-outline-variant/60 shadow-m3-2 z-30 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
