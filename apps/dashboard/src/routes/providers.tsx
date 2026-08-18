@@ -505,7 +505,7 @@ export function ProvidersPage() {
       let assistantText = '';
       let tokensUsed: number | undefined;
 
-      const isEventStream = contentType.includes('text/event-stream') || streamMode;
+      const isEventStream = contentType.includes('text/event-stream');
 
       if (isEventStream && response.body) {
         // Open the inspector panel immediately so user sees incremental text stream
@@ -522,6 +522,7 @@ export function ProvidersPage() {
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
+        let fullRawStream = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -529,6 +530,7 @@ export function ProvidersPage() {
 
           const textChunk = decoder.decode(value, { stream: true });
           buffer += textChunk;
+          fullRawStream += textChunk;
 
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
@@ -543,6 +545,9 @@ export function ProvidersPage() {
 
               try {
                 const chunk = JSON.parse(dataStr);
+                if (chunk.error) {
+                  throw new Error(chunk.error?.message || (typeof chunk.error === 'string' ? chunk.error : 'Stream error'));
+                }
                 const delta =
                   chunk.choices?.[0]?.delta?.content ||
                   chunk.choices?.[0]?.text ||
@@ -558,7 +563,8 @@ export function ProvidersPage() {
                 if (chunk.usage?.total_tokens) {
                   tokensUsed = chunk.usage.total_tokens;
                 }
-              } catch {
+              } catch (e: any) {
+                if (e.message && !e.message.startsWith('Unexpected token')) throw e;
                 if (dataStr && dataStr !== '[DONE]') {
                   assistantText += dataStr;
                   setPlaygroundResponse((prev) =>
@@ -570,20 +576,17 @@ export function ProvidersPage() {
           }
         }
 
-        if (buffer.trim().startsWith('data: ')) {
-          const dataStr = buffer.trim().slice(6).trim();
-          if (dataStr && dataStr !== '[DONE]') {
-            try {
-              const chunk = JSON.parse(dataStr);
-              const delta =
-                chunk.choices?.[0]?.delta?.content ||
-                chunk.choices?.[0]?.text ||
-                chunk.delta?.text ||
-                '';
-              if (delta) {
-                assistantText += delta;
-              }
-            } catch {}
+        // If no SSE delta was found, fallback to parsing full raw stream as JSON
+        if (!assistantText.trim() && fullRawStream.trim()) {
+          try {
+            const data = JSON.parse(fullRawStream);
+            assistantText =
+              data.choices?.[0]?.message?.content ||
+              data.content?.[0]?.text ||
+              fullRawStream;
+            tokensUsed = data.usage?.total_tokens;
+          } catch {
+            assistantText = fullRawStream;
           }
         }
       } else {
