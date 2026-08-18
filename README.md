@@ -33,18 +33,20 @@
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    actor Client as 💻 YOUR CLIENT<br/>(Claude / IDE / App)
-    participant Proxy as 🛡️ AI PRIVACY PROXY (LOCAL)
-    participant Cloud as ☁️ CLOUD AI PROVIDER<br/>(OpenAI, Anthropic, 9router, etc.)
+    participant C as 💻 YOUR CLIENT<br/>(Claude / IDE / App)
+    participant P as 🛡️ AI PRIVACY PROXY<br/>(LOCAL)
+    participant A as ☁️ CLOUD AI PROVIDER<br/>(OpenAI, Anthropic, 9router, etc.)
 
-    Client->>Proxy: Raw Prompt (with sensitive PII)
-    Note over Proxy: 🔍 Presidio NLP detects PII<br/>🔑 Redis Vault saves token map<br/>🔒 Replace PII with surrogate tokens
-    Proxy->>Cloud: Sanitized Prompt (tokens only)
-    Note over Cloud: 🤖 AI processes prompt safely
-    Cloud-->>Proxy: Stream AI Response (with tokens)
-    Note over Proxy: ⚡ Stream Detokenizer<br/>🔓 Restores plaintext via Redis map
-    Proxy-->>Client: Plaintext Restored in Real-Time (SSE)
+    C->>P: 1. Raw Prompt (with PII)
+    Note right of P: 🔍 Detect PII (Presidio NLP)<br/>🔑 Save token map (Redis Vault)<br/>🔒 Replace PII with surrogate tokens
+
+    P->>A: 2. Sanitized Prompt (tokens only)
+    Note right of A: 🤖 AI processes prompt safely
+
+    A-->>P: 3. Stream AI Response (with tokens)
+    Note right of P: ⚡ Stream Detokenizer<br/>🔓 Restore plaintext via token map
+
+    P-->>C: 4. Plaintext Restored in Real-Time (SSE)
 ```
 
 ### 🔬 End-to-End Payload Lifecycle Example
