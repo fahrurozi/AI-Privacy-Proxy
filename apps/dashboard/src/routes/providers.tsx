@@ -168,6 +168,20 @@ export function ProvidersPage() {
     'Please summarize this audit record: Customer Alice Walker (alice@techcorp.com) authorized a payment transfer of 2.5 ETH to 0x71C8F794B32145429631994304244a1234567890. Please CC satoshi@bitcoin.org.'
   );
   const [isSendingRequest, setIsSendingRequest] = useState(false);
+  const [requestElapsedSeconds, setRequestElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    let interval: any;
+    if (isSendingRequest) {
+      setRequestElapsedSeconds(0);
+      interval = setInterval(() => {
+        setRequestElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setRequestElapsedSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [isSendingRequest]);
   const [playgroundResponse, setPlaygroundResponse] = useState<{
     text: string;
     sanitizedPrompt?: string;
@@ -1168,10 +1182,14 @@ export function ProvidersPage() {
                   type="button"
                   onClick={handleSendPlaygroundRequest}
                   disabled={isSendingRequest || !ephemeralKey.trim() || !playgroundPrompt.trim()}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-m3-lg transition disabled:opacity-50 shadow-lg shadow-emerald-600/20"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-m3-lg transition disabled:opacity-50 shadow-lg shadow-emerald-600/20 cursor-pointer"
                 >
                   {isSendingRequest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  <span>{isSendingRequest ? 'Intercepting & Sanitizing...' : 'Send Request via Privacy Proxy'}</span>
+                  <span>
+                    {isSendingRequest
+                      ? `Waiting for Upstream AI (${requestElapsedSeconds}s)...`
+                      : 'Send Request via Privacy Proxy'}
+                  </span>
                 </button>
               </div>
             </div>
