@@ -173,6 +173,39 @@ export async function processIncomingRequest(
     allTokens.push(...tokenResult.mappings);
   }
 
+  // ── Smart Token Preservation System Hint Injection ────────────────────────
+  // Only inject if at least 1 PII token was generated and the feature is enabled.
+  if (allTokens.length > 0 && upstreamStore.isPreservationHintEnabled()) {
+    const hintText = upstreamStore.getPreservationHintText();
+
+    if (adapter.type === 'openai') {
+      if (Array.isArray(parsedBody.messages)) {
+        const sysMsg = parsedBody.messages.find((m: any) => m && m.role === 'system');
+        if (sysMsg) {
+          if (typeof sysMsg.content === 'string') {
+            sysMsg.content = `${sysMsg.content}\n\n[Proxy Directive: ${hintText}]`;
+          } else if (Array.isArray(sysMsg.content)) {
+            sysMsg.content.push({ type: 'text', text: `\n\n[Proxy Directive: ${hintText}]` });
+          }
+        } else {
+          // Prepend new system message with the directive
+          parsedBody.messages.unshift({
+            role: 'system',
+            content: `[Proxy Directive: ${hintText}]`,
+          });
+        }
+      }
+    } else if (adapter.type === 'anthropic') {
+      if (typeof parsedBody.system === 'string') {
+        parsedBody.system = `${parsedBody.system}\n\n[Proxy Directive: ${hintText}]`;
+      } else if (Array.isArray(parsedBody.system)) {
+        parsedBody.system.push({ type: 'text', text: `\n\n[Proxy Directive: ${hintText}]` });
+      } else {
+        parsedBody.system = `[Proxy Directive: ${hintText}]`;
+      }
+    }
+  }
+
   return {
     sanitizedBody: JSON.stringify(parsedBody),
     sessionId,
@@ -183,3 +216,4 @@ export async function processIncomingRequest(
     protocol: adapter.type,
   };
 }
+

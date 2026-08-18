@@ -11,11 +11,17 @@ import {
   Shield,
   Layers,
   Globe,
+  Sparkles,
+  ToggleLeft,
+  ToggleRight,
+  HelpCircle,
 } from 'lucide-react';
 
 export function SettingsPage() {
   const [privacyMode, setPrivacyMode] = useState<PrivacyMode>('balanced');
   const [vaultTtl, setVaultTtl] = useState<number>(3600);
+  const [injectHint, setInjectHint] = useState<boolean>(true);
+  const [customHint, setCustomHint] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -26,6 +32,8 @@ export function SettingsPage() {
       const data = await fetchApi<UpstreamSettings>('/admin/upstream');
       setPrivacyMode(data.privacyMode || 'balanced');
       setVaultTtl(data.vaultTtlSeconds || 3600);
+      setInjectHint(data.injectPreservationHint !== false);
+      setCustomHint(data.customPreservationHint || '');
     } catch (err: any) {
       setStatusMessage({ text: `Failed to load settings: ${err.message}`, type: 'error' });
     } finally {
@@ -46,11 +54,15 @@ export function SettingsPage() {
         body: JSON.stringify({
           privacyMode,
           vaultTtlSeconds: vaultTtl,
+          injectPreservationHint: injectHint,
+          customPreservationHint: customHint.trim() || undefined,
         }),
       });
 
       setPrivacyMode(res.settings.privacyMode);
       setVaultTtl(res.settings.vaultTtlSeconds);
+      setInjectHint(res.settings.injectPreservationHint !== false);
+      setCustomHint(res.settings.customPreservationHint || '');
       setStatusMessage({ text: 'System settings saved and applied dynamically in real-time!', type: 'success' });
       setTimeout(() => setStatusMessage(null), 4000);
     } catch (err: any) {
@@ -74,7 +86,7 @@ export function SettingsPage() {
           Gateway System Settings
         </h1>
         <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-          Configure real-time privacy operating modes, fallback resilience, and ephemeral Token Vault TTL.
+          Configure real-time privacy operating modes, fallback resilience, prompt token preservation directives, and ephemeral Token Vault TTL.
         </p>
       </div>
 
@@ -173,6 +185,75 @@ export function SettingsPage() {
               </p>
             </button>
           </div>
+        </div>
+
+        {/* Smart Token Preservation System Hint Card */}
+        <div className="space-y-4 p-5 sm:p-6 bg-surface-container rounded-m3-lg border border-outline-variant/40">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <label className="text-xs sm:text-sm font-bold text-on-surface">
+                  Smart Token Preservation Directive (Just-In-Time)
+                </label>
+                <div className="relative group flex items-center">
+                  <HelpCircle className="w-4 h-4 text-on-surface-variant/70 group-hover:text-primary transition-colors cursor-help" />
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:flex flex-col items-center w-72 p-3 bg-surface-container-highest text-on-surface text-[11px] leading-relaxed rounded-m3-md border border-outline-variant/60 shadow-m3-2 z-30 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+                    <p className="font-semibold text-primary mb-1">What is this directive?</p>
+                    <p className="text-on-surface-variant">
+                      When PII is sanitized, the proxy attaches a subtle system rule instructing upstream LLMs to retain bracketed tokens and masked strings exactly as written, preventing hallucinations or token corruption. It incurs zero latency when no PII is detected.
+                    </p>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-surface-container-highest" />
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-on-surface-variant leading-relaxed max-w-2xl">
+                Automatically attaches a non-intrusive system directive instructing the upstream LLM to preserve bracketed tokens (<code className="font-mono text-primary">[PREFIX:*]</code>) and masked strings (<code className="font-mono text-secondary">s***i@domain.com</code>, <code className="font-mono text-secondary">0x123...456</code>) verbatim. <strong>Zero overhead:</strong> Only injected when PII tokens are actually generated in the request.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setInjectHint(!injectHint)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-m3-full text-xs font-semibold border transition ${
+                injectHint
+                  ? 'bg-secondary-container text-secondary-on-container border-secondary/30'
+                  : 'bg-surface-container-high text-on-surface-variant border-outline-variant/60'
+              }`}
+            >
+              {injectHint ? <ToggleRight className="w-4 h-4 text-secondary" /> : <ToggleLeft className="w-4 h-4" />}
+              <span>{injectHint ? 'Enabled' : 'Disabled'}</span>
+            </button>
+          </div>
+
+          {injectHint && (
+            <div className="space-y-3 pt-3 border-t border-outline-variant/30 animate-in fade-in duration-150">
+              <div>
+                <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">
+                  Default Directive Sent to LLM
+                </label>
+                <div className="p-3 bg-surface-container-high rounded-m3-md border border-outline-variant/50 text-xs font-mono text-on-surface leading-relaxed select-all">
+                  IMPORTANT: Bracketed tokens like [PREFIX:*] and masked strings (e.g. s***i@domain.com, 0x1234...abcd, ****-1234) are literal variables. Preserve them verbatim in your response without modifying, guessing, or replacing them.
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                  Custom Directive Override (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Enter custom prompt directive to override the default above..."
+                  value={customHint}
+                  onChange={(e) => setCustomHint(e.target.value)}
+                  className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-md px-3.5 py-2 text-xs text-on-surface focus:outline-none focus:border-primary font-mono resize-none"
+                />
+                <p className="text-[11px] text-on-surface-variant/80">
+                  Leave empty to use the default directive shown above.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Vault TTL Slider */}

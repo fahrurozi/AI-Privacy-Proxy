@@ -54,6 +54,8 @@ class UpstreamStore {
   private defaultProviderId = 'openai';
   private privacyMode: PrivacyMode = config.PRIVACY_MODE;
   private vaultTtlSeconds: number = config.VAULT_TTL_SECONDS;
+  private injectPreservationHint: boolean = true;
+  private customPreservationHint?: string;
 
   constructor() {
     this.initDefaultProviders();
@@ -113,6 +115,12 @@ class UpstreamStore {
         this.vaultTtlSeconds = data.vaultTtlSeconds;
         config.VAULT_TTL_SECONDS = data.vaultTtlSeconds;
       }
+      if (typeof data.injectPreservationHint === 'boolean') {
+        this.injectPreservationHint = data.injectPreservationHint;
+      }
+      if (typeof data.customPreservationHint === 'string') {
+        this.customPreservationHint = data.customPreservationHint;
+      }
     }
   }
 
@@ -139,6 +147,8 @@ class UpstreamStore {
         defaultProviderId: this.defaultProviderId,
         privacyMode: this.privacyMode,
         vaultTtlSeconds: this.vaultTtlSeconds,
+        injectPreservationHint: this.injectPreservationHint,
+        customPreservationHint: this.customPreservationHint,
         providers: Array.from(this.providers.values()),
       };
       fs.writeFileSync(PROVIDERS_FILE, JSON.stringify(data, null, 2), 'utf-8');
@@ -153,6 +163,8 @@ class UpstreamStore {
           defaultProviderId: this.defaultProviderId,
           privacyMode: this.privacyMode,
           vaultTtlSeconds: this.vaultTtlSeconds,
+          injectPreservationHint: this.injectPreservationHint,
+          customPreservationHint: this.customPreservationHint,
           providers: Array.from(this.providers.values()),
         };
         await vaultInstance.saveConfig('privacy:v1:system:providers', data);
@@ -171,11 +183,24 @@ class UpstreamStore {
       vaultTtlSeconds: this.vaultTtlSeconds,
       hasCustomKey: Boolean(config.ADMIN_API_KEY),
       providers: Array.from(this.providers.values()),
+      injectPreservationHint: this.injectPreservationHint,
+      customPreservationHint: this.customPreservationHint,
     };
   }
 
   getProvider(id: string): UpstreamProvider | undefined {
     return this.providers.get(id.toLowerCase());
+  }
+
+  isPreservationHintEnabled(): boolean {
+    return this.injectPreservationHint;
+  }
+
+  getPreservationHintText(): string {
+    if (this.customPreservationHint && this.customPreservationHint.trim()) {
+      return this.customPreservationHint.trim();
+    }
+    return 'IMPORTANT: Bracketed tokens like [PREFIX:*] and masked strings (e.g. s***i@domain.com, 0x1234...abcd, ****-1234) are literal variables. Preserve them verbatim in your response without modifying, guessing, or replacing them.';
   }
 
   resolveTarget(
@@ -240,6 +265,8 @@ class UpstreamStore {
     upstreamBaseUrl?: string;
     privacyMode?: PrivacyMode;
     vaultTtlSeconds?: number;
+    injectPreservationHint?: boolean;
+    customPreservationHint?: string;
     providers?: UpstreamProvider[];
   }) {
     if (newSettings.privacyMode) {
@@ -250,6 +277,14 @@ class UpstreamStore {
     if (newSettings.vaultTtlSeconds && newSettings.vaultTtlSeconds >= 10) {
       this.vaultTtlSeconds = newSettings.vaultTtlSeconds;
       config.VAULT_TTL_SECONDS = newSettings.vaultTtlSeconds;
+    }
+
+    if (typeof newSettings.injectPreservationHint === 'boolean') {
+      this.injectPreservationHint = newSettings.injectPreservationHint;
+    }
+
+    if (typeof newSettings.customPreservationHint === 'string') {
+      this.customPreservationHint = newSettings.customPreservationHint;
     }
 
     if (newSettings.providers && Array.isArray(newSettings.providers)) {

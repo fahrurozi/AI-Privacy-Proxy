@@ -32,42 +32,32 @@
 ## 🔄 How It Works
 
 ```
-                     ┌─────────────────────────────────────────────────────────┐
-                     │                 Your Trusted Local Network              │
-                     │                                                         │
-  Claude Code / SDK  │    1. Raw Prompt (with PII)                             │
-  ─────────────────► │ ─────────────────────────────┐                         │
-                     │                              ▼                          │
-                     │                  ┌───────────────────────┐              │
-                     │                  │  AI Privacy Proxy     │              │
-                     │                  │  (Fastify Gateway)    │              │
-                     │                  └───────────┬───────────┘              │
-                     │                              │                          │
-                     │           2. Detect PII      │ 3. Store Tokens          │
-                     │           & Replace          │ in Ephemeral Vault       │
-                     │                  ▼           ▼                          │
-                     │          ┌──────────────┐ ┌─────────────┐               │
-                     │          │ Presidio NLP │ │ Redis Vault │               │
-                     │          └──────────────┘ └─────────────┘               │
-                     └──────────────────────────────┬──────────────────────────┘
-                                                    │
-                                                    │ 4. Sanitized Prompt
-                                                    │    (Surrogate Tokens Only)
-                                                    ▼
-                                    ┌───────────────────────────────┐
-                                    │    Cloud AI Provider / Router │
-                                    │   (OpenAI, Anthropic, 9router)│
-                                    └───────────────┬───────────────┘
-                                                    │
-                     ┌──────────────────────────────┴──────────────────────────┐
-                     │ 5. AI Response with Tokens                              │
-                     │                              ▼                          │
-                     │                  ┌───────────────────────┐              │
-  Original Data      │                  │  Stream Detokenizer   │ ◄── Redis    │
-  Delivered Safe     │                  │  (SSE / Non-Stream)   │     Vault    │
-  ◄───────────────── │ ─────────────────┴───────────────────────┘              │
-                     │    6. Real-time Plaintext Restored                      │
-                     └─────────────────────────────────────────────────────────┘
+  ┌──────────────────┐            ┌──────────────────────────────┐            ┌────────────────────────────────────────┐
+  │   YOUR CLIENT    │            │     🛡️ AI PRIVACY PROXY      │            │           CLOUD AI PROVIDER            │
+  │ (Claude/IDE/App) │            │           (LOCAL)            │            │   (OpenAI, Anthropic, 9router, etc.)   │
+  └────────┬─────────┘            └──────────────┬───────────────┘            └───────────────────┬────────────────────┘
+           │                                     │                                                │
+           │  1. Raw Prompt (with PII)           │                                                │
+           │ ──────────────────────────────────► │                                                │
+           │                                     │ 🔍 Presidio NLP detects PII                    │
+           │                                     │ 🔑 Redis Vault saves token map                 │
+           │                                     │ 🔒 Replace PII with surrogate tokens           │
+           │                                     │                                                │
+           │                                     │  2. Sanitized Prompt (tokens only)             │
+           │                                     │ ─────────────────────────────────────────────► │
+           │                                     │                                                │
+           │                                     │                                                │ 🤖 AI processes
+           │                                     │                                                │    prompt safely
+           │                                     │                                                │
+           │                                     │  3. Stream AI Response (with tokens)           │
+           │                                     │ ◄───────────────────────────────────────────── │
+           │                                     │                                                │
+           │                                     │ ⚡ Stream Detokenizer                          │
+           │                                     │ 🔓 Restores plaintext via Redis map            │
+           │                                     │                                                │
+           │  4. Plaintext Restored in Real-Time │                                                │
+           │ ◄────────────────────────────────── │                                                │
+           │                                     │                                                │
 ```
 
 ### 🔬 End-to-End Payload Lifecycle Example

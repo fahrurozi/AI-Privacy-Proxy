@@ -98,6 +98,8 @@ export interface UpstreamSettings {
   vaultTtlSeconds: number;
   hasCustomKey: boolean;
   providers: UpstreamProvider[];
+  injectPreservationHint?: boolean | undefined;
+  customPreservationHint?: string | undefined;
 }
 
 export interface CustomRecognizerConfig {

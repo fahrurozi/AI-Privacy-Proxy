@@ -499,6 +499,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
       upstreamBaseUrl?: string;
       privacyMode?: PrivacyMode;
       vaultTtlSeconds?: number;
+      injectPreservationHint?: boolean;
+      customPreservationHint?: string;
       providers?: UpstreamProvider[];
     };
 
