@@ -84,6 +84,7 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
 
     if (req.headers['x-privacy-debug'] === 'true') {
       reply.header('x-privacy-sanitized-body', Buffer.from(processed.sanitizedBody || '').toString('base64'));
+      reply.header('x-privacy-tokens-map', Buffer.from(JSON.stringify(processed.tokensCreated || [])).toString('base64'));
       reply.header('x-privacy-tokens-count', String(processed.tokensCreated.length));
       reply.header('x-privacy-entities', JSON.stringify(processed.entitiesDetected));
     }
@@ -159,6 +160,7 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
     if (req.headers['x-privacy-debug'] === 'true') {
       reply.header('x-privacy-sanitized-body', Buffer.from(processed.sanitizedBody || '').toString('base64'));
       reply.header('x-privacy-raw-upstream-body', Buffer.from(rawText || '').toString('base64'));
+      reply.header('x-privacy-tokens-map', Buffer.from(JSON.stringify(processed.tokensCreated || [])).toString('base64'));
       reply.header('x-privacy-tokens-count', String(processed.tokensCreated.length));
       reply.header('x-privacy-entities', JSON.stringify(processed.entitiesDetected));
     }

@@ -401,6 +401,7 @@ export function ProvidersPage() {
       setIsSendingRequest(true);
       setPlaygroundError(null);
       setPlaygroundResponse(null);
+      setTokenLegend([]);
 
       const startTime = Date.now();
       const isAnthropic = selectedProviderForPlayground.id === 'anthropic' || selectedProviderForPlayground.baseUrl.includes('anthropic.com');
@@ -483,6 +484,19 @@ export function ProvidersPage() {
           const decoded = atob(rawUpstreamHeader);
           const parsed = JSON.parse(decoded);
           rawUpstreamResponse = parsed.choices?.[0]?.message?.content || parsed.content?.[0]?.text || decoded;
+        } catch {}
+      }
+
+      // Directly extract exact token mappings created for this request
+      const tokensMapHeader = response.headers.get('x-privacy-tokens-map');
+      let directTokens: { token: string; entityType: string; originalValue: string }[] = [];
+      if (tokensMapHeader) {
+        try {
+          const decoded = atob(tokensMapHeader);
+          directTokens = JSON.parse(decoded);
+          if (Array.isArray(directTokens) && directTokens.length > 0) {
+            setTokenLegend(directTokens);
+          }
         } catch {}
       }
 
@@ -608,13 +622,15 @@ export function ProvidersPage() {
         proxyOverheadMs,
       });
 
-      // Fetch token mapping legend if we have a session ID
-      if (sessionId) {
+      // Fallback: Fetch token mapping legend from session endpoint if not already loaded from response header
+      if (directTokens.length === 0 && sessionId) {
         try {
           const legendData = await fetchApi<{ tokens: { token: string; entityType: string; originalValue: string }[] }>(
             `/admin/sessions/${encodeURIComponent(sessionId)}/tokens`
           );
-          setTokenLegend(legendData.tokens || []);
+          if (legendData.tokens && legendData.tokens.length > 0) {
+            setTokenLegend(legendData.tokens);
+          }
         } catch {}
       }
     } catch (err: any) {
