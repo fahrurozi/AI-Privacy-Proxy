@@ -31,33 +31,20 @@
 
 ## 🔄 How It Works
 
-```
-  ┌──────────────────┐            ┌──────────────────────────────┐            ┌────────────────────────────────────────┐
-  │   YOUR CLIENT    │            │     🛡️ AI PRIVACY PROXY      │            │           CLOUD AI PROVIDER            │
-  │ (Claude/IDE/App) │            │           (LOCAL)            │            │   (OpenAI, Anthropic, 9router, etc.)   │
-  └────────┬─────────┘            └──────────────┬───────────────┘            └───────────────────┬────────────────────┘
-           │                                     │                                                │
-           │  1. Raw Prompt (with PII)           │                                                │
-           │ ──────────────────────────────────► │                                                │
-           │                                     │ 🔍 Presidio NLP detects PII                    │
-           │                                     │ 🔑 Redis Vault saves token map                 │
-           │                                     │ 🔒 Replace PII with surrogate tokens           │
-           │                                     │                                                │
-           │                                     │  2. Sanitized Prompt (tokens only)             │
-           │                                     │ ─────────────────────────────────────────────► │
-           │                                     │                                                │
-           │                                     │                                                │ 🤖 AI processes
-           │                                     │                                                │    prompt safely
-           │                                     │                                                │
-           │                                     │  3. Stream AI Response (with tokens)           │
-           │                                     │ ◄───────────────────────────────────────────── │
-           │                                     │                                                │
-           │                                     │ ⚡ Stream Detokenizer                          │
-           │                                     │ 🔓 Restores plaintext via Redis map            │
-           │                                     │                                                │
-           │  4. Plaintext Restored in Real-Time │                                                │
-           │ ◄────────────────────────────────── │                                                │
-           │                                     │                                                │
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as 💻 YOUR CLIENT<br/>(Claude / IDE / App)
+    participant Proxy as 🛡️ AI PRIVACY PROXY (LOCAL)
+    participant Cloud as ☁️ CLOUD AI PROVIDER<br/>(OpenAI, Anthropic, 9router, etc.)
+
+    Client->>Proxy: Raw Prompt (with sensitive PII)
+    Note over Proxy: 🔍 Presidio NLP detects PII<br/>🔑 Redis Vault saves token map<br/>🔒 Replace PII with surrogate tokens
+    Proxy->>Cloud: Sanitized Prompt (tokens only)
+    Note over Cloud: 🤖 AI processes prompt safely
+    Cloud-->>Proxy: Stream AI Response (with tokens)
+    Note over Proxy: ⚡ Stream Detokenizer<br/>🔓 Restores plaintext via Redis map
+    Proxy-->>Client: Plaintext Restored in Real-Time (SSE)
 ```
 
 ### 🔬 End-to-End Payload Lifecycle Example
