@@ -1239,40 +1239,40 @@ export function ProvidersPage() {
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('sent_external')}
-                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center ${
+                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center cursor-pointer ${
                       activePlaygroundTab === 'sent_external'
                         ? 'bg-blue-600 text-white shadow'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
                     <Lock className="w-3 h-3 shrink-0" />
-                    <span>1. Dikirim ke External</span>
+                    <span>1. Sent to External</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('raw_external')}
-                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center ${
+                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center cursor-pointer ${
                       activePlaygroundTab === 'raw_external'
                         ? 'bg-amber-600 text-white shadow'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
                     <Cpu className="w-3 h-3 shrink-0" />
-                    <span>2. Response dari External</span>
+                    <span>2. Raw Upstream Response</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('client')}
-                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center ${
+                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center cursor-pointer ${
                       activePlaygroundTab === 'client'
                         ? 'bg-emerald-600 text-white shadow'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
                     <Sparkles className="w-3 h-3 shrink-0" />
-                    <span>3. Ditampilkan ke Client</span>
+                    <span>3. Delivered to Client</span>
                   </button>
                 </div>
 
@@ -1281,7 +1281,7 @@ export function ProvidersPage() {
                   <div className="space-y-2 animate-in fade-in duration-200">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-blue-300 font-semibold flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5 text-blue-400" /> Sanitized Prompt (Yang Diterima Cloud Router / 9router)
+                        <Lock className="w-3.5 h-3.5 text-blue-400" /> Sanitized Prompt (Received by Cloud AI / Router)
                       </span>
                       <span className="text-[10px] text-blue-400 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-900/50 font-mono">
                         Surrogate Tokens Only • Zero PII Leak
@@ -1291,7 +1291,7 @@ export function ProvidersPage() {
                       {playgroundResponse.sanitizedPrompt || playgroundPrompt}
                     </div>
                     <p className="text-[10px] text-on-surface-variant">
-                      Seluruh identitas asli (nama, email, alamat crypto) telah digantikan dengan token acak sebelum keluar dari server Anda.
+                      All sensitive personal data (names, emails, crypto addresses) has been replaced with surrogate tokens before leaving your local server.
                     </p>
                   </div>
                 )}
@@ -1301,7 +1301,7 @@ export function ProvidersPage() {
                   <div className="space-y-2 animate-in fade-in duration-200">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-amber-300 font-semibold flex items-center gap-1.5">
-                        <Cpu className="w-3.5 h-3.5 text-amber-400" /> Raw Response (Jawaban Mentah yang Dikirim oleh AI)
+                        <Cpu className="w-3.5 h-3.5 text-amber-400" /> Raw Response (Tokenized Response Sent by AI)
                       </span>
                       <span className="text-[10px] text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-900/50 font-mono">
                         Tokenized AI Completion
@@ -1311,7 +1311,7 @@ export function ProvidersPage() {
                       <HighlightedTokenText text={playgroundResponse.rawUpstreamResponse || playgroundResponse.text} legend={tokenLegend} />
                     </div>
                     <p className="text-[10px] text-on-surface-variant">
-                      Model AI memproses dan menyusun jawaban menggunakan token acak tanpa pernah mengetahui data sensitif asli Anda.
+                      The cloud AI model processes and generates responses referencing surrogate tokens without ever knowing your actual sensitive data.
                     </p>
                   </div>
                 )}
@@ -1321,7 +1321,7 @@ export function ProvidersPage() {
                   <div className="space-y-2 animate-in fade-in duration-200">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Detokenized Result (Hasil Akhir di Client / IDE)
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Detokenized Result (Final Output Delivered to Client / IDE)
                       </span>
                       <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/50 font-mono">
                         Plaintext Restored Transparently
@@ -1331,7 +1331,7 @@ export function ProvidersPage() {
                       {playgroundResponse.text}
                     </div>
                     <p className="text-[10px] text-on-surface-variant">
-                      Privacy Proxy secara transparan memulihkan token kembali ke data asli sebelum diserahkan ke aplikasi/IDE Anda.
+                      The Privacy Proxy transparently restores surrogate tokens back to their original values before delivering the response to your client application or IDE.
                     </p>
                   </div>
                 )}
