@@ -10,6 +10,7 @@ import { SettingsPage } from './routes/settings.js';
 import { LoginPage } from './routes/login.js';
 import { GuideModal } from './components/GuideModal.js';
 import { isAuthenticated, clearAdminKey } from './lib/api.js';
+import { useTheme } from './lib/theme.js';
 import {
   LayoutDashboard,
   Activity,
@@ -24,6 +25,8 @@ import {
   LogOut,
   User,
   BookOpen,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const VALID_PAGES = ['overview', 'monitoring', 'providers', 'policy', 'recognizers', 'sessions', 'audit', 'settings'];
@@ -37,7 +40,6 @@ function getPageFromUrl(): string {
     return lastSegment;
   }
 
-  // Check hash fallback (e.g. #/providers or #providers)
   const hash = window.location.hash.replace(/^#\/?/, '');
   if (VALID_PAGES.includes(hash)) {
     return hash;
@@ -51,18 +53,17 @@ export function DashboardApp() {
   const [currentPage, setCurrentPage] = useState<string>(() => getPageFromUrl());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const navigateTo = useCallback((pageId: string) => {
     if (!VALID_PAGES.includes(pageId)) return;
     setCurrentPage(pageId);
     setMobileSidebarOpen(false);
 
-    // Update browser URL without reloading
     const newPath = `/dashboard/${pageId === 'overview' ? '' : pageId}`;
     window.history.pushState({ page: pageId }, '', newPath);
   }, []);
 
-  // Listen for browser Back/Forward navigation
   useEffect(() => {
     const handlePopState = () => {
       setCurrentPage(getPageFromUrl());
@@ -72,7 +73,6 @@ export function DashboardApp() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Listen for auth state changes
   useEffect(() => {
     const handleAuthChange = () => {
       setIsLoggedIn(isAuthenticated());
@@ -89,7 +89,6 @@ export function DashboardApp() {
     }
   };
 
-  // If not authenticated, render Login view
   if (!isLoggedIn) {
     return <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />;
   }
@@ -129,42 +128,42 @@ export function DashboardApp() {
   };
 
   return (
-    <div className="flex h-screen bg-[#090d16] text-slate-100 overflow-hidden font-sans">
-      {/* Mobile Sidebar Backdrop with smooth fade */}
+    <div className="flex h-screen bg-background text-on-surface overflow-hidden font-sans select-none transition-colors duration-200">
+      {/* Mobile Scrim Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ease-out ${
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ease-out ${
           mobileSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setMobileSidebarOpen(false)}
       />
 
-      {/* Sidebar with smooth slide animation */}
+      {/* Material 3 Modal / Standard Navigation Drawer */}
       <aside
-        className={`fixed lg:static top-0 left-0 bottom-0 w-64 bg-[#0c1220] border-r border-slate-800/80 z-50 flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed lg:static top-0 left-0 bottom-0 w-72 bg-surface-container-low border-r border-outline-variant/60 z-50 flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.2,0,0,1)] ${
+          mobileSidebarOpen ? 'translate-x-0 shadow-m3-4' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Brand Header with Custom Logo */}
-        <div className="p-5 flex items-center justify-between border-b border-slate-800/80">
+        {/* Brand Header */}
+        <div className="p-5 flex items-center justify-between border-b border-outline-variant/40">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl overflow-hidden shadow-lg shadow-blue-500/20 border border-slate-700/60 bg-slate-900 shrink-0">
+            <div className="w-10 h-10 rounded-m3-md overflow-hidden shadow-m3-1 border border-outline-variant bg-surface shrink-0">
               <img src="/dashboard/logo.jpg" alt="AI Privacy Proxy Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-              <div className="font-bold text-sm tracking-tight text-slate-100">Privacy Proxy</div>
-              <div className="text-[10px] font-mono text-blue-400">v0.1.0-alpha</div>
+              <div className="font-bold text-sm tracking-tight text-on-surface">Privacy Proxy</div>
+              <div className="text-[11px] font-mono text-primary font-medium">v0.1.0</div>
             </div>
           </div>
           <button
             onClick={() => setMobileSidebarOpen(false)}
-            className="lg:hidden p-1 text-slate-400 hover:text-slate-200"
+            className="lg:hidden p-2 text-on-surface-variant hover:text-on-surface rounded-m3-full hover:bg-surface-container-high transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        {/* Navigation Items (M3 Active Indicator Pill Style) */}
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const active = currentPage === item.id;
@@ -172,34 +171,37 @@ export function DashboardApp() {
               <button
                 key={item.id}
                 onClick={() => navigateTo(item.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-medium transition ${
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-m3-full text-xs font-semibold transition-all duration-200 m3-state-layer ${
                   active
-                    ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    ? 'bg-primary-container text-primary-on-container shadow-m3-1'
+                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-slate-400'}`} />
-                {item.label}
+                <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${active ? 'text-primary-on-container scale-110' : 'text-on-surface-variant'}`} />
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
         </nav>
 
         {/* Sidebar Footer with User Info & Logout */}
-        <div className="p-3 border-t border-slate-800/80 bg-slate-950/40 space-y-2">
+        <div className="p-4 border-t border-outline-variant/40 bg-surface-container space-y-3">
           <div className="flex items-center justify-between px-2 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-m3-full bg-secondary-container text-secondary-on-container flex items-center justify-center font-semibold">
                 <User className="w-3.5 h-3.5" />
               </div>
-              <span className="font-medium text-slate-300">Admin</span>
+              <span className="font-semibold text-on-surface">Admin</span>
             </div>
-            <span className="w-2 h-2 rounded-full bg-emerald-400" title="Online" />
+            <div className="flex items-center gap-1 text-[11px] text-secondary font-medium">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
+              <span>Online</span>
+            </div>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs text-slate-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition border border-transparent hover:border-red-500/20"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-error hover:bg-error-container hover:text-error-on-container rounded-m3-full transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" /> Log Out
           </button>
@@ -208,49 +210,54 @@ export function DashboardApp() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Navbar */}
-        <header className="h-14 border-b border-slate-800/80 bg-[#0c1220]/70 backdrop-blur px-6 flex items-center justify-between shrink-0">
-          <button
-            onClick={() => setMobileSidebarOpen(true)}
-            className="lg:hidden p-1 text-slate-400 hover:text-slate-200"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+        {/* Material 3 Top App Bar */}
+        <header className="h-16 border-b border-outline-variant/40 bg-surface/85 backdrop-blur-md px-6 flex items-center justify-between shrink-0 shadow-sm transition-colors duration-200">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden p-2 text-on-surface-variant hover:text-on-surface rounded-m3-full hover:bg-surface-container-high transition"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
 
-          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-400">
-            <span>Gateway Admin</span>
-            <span>/</span>
-            <span className="text-slate-200 font-medium capitalize">{currentPage}</span>
+            <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+              <span className="font-medium">Gateway Admin</span>
+              <span>/</span>
+              <span className="text-on-surface font-bold capitalize bg-surface-container-high px-2.5 py-1 rounded-m3-sm text-[11px]">
+                {currentPage}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Guide Button on the LEFT of Safe Token Vault */}
+            {/* Quick Theme Switcher Icon Button in Top Bar */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-on-surface-variant hover:text-on-surface rounded-m3-full hover:bg-surface-container-high transition"
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-600" />}
+            </button>
+
+            {/* Guide Button with M3 Elevation */}
             <button
               onClick={() => setShowGuideModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 text-blue-300 text-xs font-semibold rounded-lg border border-blue-500/30 transition shadow-sm"
-              title="Open comprehensive system architecture guide"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary-container text-primary-on-container text-xs font-semibold rounded-m3-full shadow-m3-1 hover:shadow-m3-2 transition-all"
+              title="Open system architecture guide"
             >
-              <BookOpen className="w-3.5 h-3.5 text-blue-400" /> Guide
+              <BookOpen className="w-3.5 h-3.5" /> Guide
             </button>
 
             {/* Safe Token Vault Badge */}
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-m3-full text-xs font-semibold bg-secondary-container text-secondary-on-container">
+              <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
               Safe Token Vault
             </span>
-
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-red-500/10 hover:text-red-300 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 hover:border-red-500/20 transition"
-              title="End session"
-            >
-              <LogOut className="w-3.5 h-3.5" /> Log Out
-            </button>
           </div>
         </header>
 
-        {/* Dynamic Page Body */}
-        <main className="flex-1 p-6 overflow-y-auto max-w-7xl w-full mx-auto">
+        {/* Dynamic Page Body with M3 background */}
+        <main className="flex-1 p-6 sm:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
           {renderPage()}
         </main>
       </div>

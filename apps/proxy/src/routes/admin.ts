@@ -92,33 +92,76 @@ export class AdminMetricsTracker {
     }
   }
 
-  async getSummary(): Promise<MetricsSummary> {
+  async getSummary(startDate?: string, endDate?: string): Promise<MetricsSummary> {
     const [redisOk, presidioOk] = await Promise.all([
       vault.ping(),
       checkPresidioHealth(),
     ]);
 
+    let filteredLogs = this.auditLogs;
+    if (startDate || endDate) {
+      const startMs = startDate ? new Date(startDate).getTime() : 0;
+      const endMs = endDate ? new Date(endDate).getTime() : Infinity;
+      filteredLogs = this.auditLogs.filter((log) => {
+        const t = new Date(log.timestamp).getTime();
+        return t >= startMs && t <= endMs;
+      });
+    }
+
+    // If date filters applied, compute metrics specifically for that timeframe
+    let totalRequests = this.totalRequests;
+    let blockedRequests = this.blockedRequests;
+    let tokensGenerated = this.tokensGenerated;
+    let tokensRestored = this.tokensRestored;
+    let entityCounts = { ...this.entityCounts };
+    let presidioLatencies = this.presidioLatencies;
+    let proxyLatencies = this.proxyLatencies;
+
+    if (startDate || endDate) {
+      totalRequests = filteredLogs.length;
+      blockedRequests = filteredLogs.filter((l) => l.action === 'BLOCK').length;
+      tokensGenerated = filteredLogs.reduce((acc, l) => acc + (l.action === 'TOKENIZE' || l.action === 'MASK' ? l.entitiesDetected.length : 0), 0);
+      tokensRestored = filteredLogs.reduce((acc, l) => acc + (l.action === 'TOKENIZE' || l.action === 'MASK' ? l.entitiesDetected.length : 0), 0);
+
+      entityCounts = {};
+      const presidioLats: number[] = [];
+      const proxyLats: number[] = [];
+      for (const log of filteredLogs) {
+        for (const ent of log.entitiesDetected || []) {
+          entityCounts[ent] = (entityCounts[ent] || 0) + 1;
+        }
+        if (log.presidioLatencyMs !== undefined && log.presidioLatencyMs > 0) {
+          presidioLats.push(log.presidioLatencyMs);
+        }
+        if (log.proxyOverheadMs !== undefined) {
+          proxyLats.push(log.proxyOverheadMs);
+        }
+      }
+      presidioLatencies = presidioLats;
+      proxyLatencies = proxyLats;
+    }
+
     const avgPresidio =
-      this.presidioLatencies.length > 0
-        ? Math.round(this.presidioLatencies.reduce((a, b) => a + b, 0) / this.presidioLatencies.length)
+      presidioLatencies.length > 0
+        ? Math.round(presidioLatencies.reduce((a, b) => a + b, 0) / presidioLatencies.length)
         : 0;
 
     const avgProxy =
-      this.proxyLatencies.length > 0
-        ? Math.round(this.proxyLatencies.reduce((a, b) => a + b, 0) / this.proxyLatencies.length)
+      proxyLatencies.length > 0
+        ? Math.round(proxyLatencies.reduce((a, b) => a + b, 0) / proxyLatencies.length)
         : 0;
 
     return {
-      totalRequests: this.totalRequests,
-      blockedRequests: this.blockedRequests,
-      tokensGenerated: this.tokensGenerated,
-      tokensRestored: this.tokensRestored,
+      totalRequests,
+      blockedRequests,
+      tokensGenerated,
+      tokensRestored,
       activeStreams: streamStateManager.getActiveStreamCount(),
       presidioLatencyMs: avgPresidio,
       vaultLatencyMs: 2,
       upstreamLatencyMs: 120,
       proxyLatencyMs: avgProxy,
-      entityBreakdown: { ...this.entityCounts },
+      entityBreakdown: entityCounts,
       status: {
         proxy: 'healthy',
         presidio: presidioOk ? 'healthy' : 'down',
@@ -240,7 +283,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
   fastify.get('/admin/metrics', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
-    const summary = await metricsTracker.getSummary();
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    const summary = await metricsTracker.getSummary(startDate, endDate);
     return reply.send(summary);
   });
 
@@ -338,39 +382,43 @@ export async function adminRoutes(fastify: FastifyInstance) {
     const policyMap = new Map((body.policies || policyRegistry.getAllPolicies()).map((p) => [p.entityType.toUpperCase(), p]));
     const sorted = [...entities].sort((a, b) => b.start - a.start);
     let transformed = text;
-    const detected: Array<{ entityType: string; matchedText: string; action: string; score: number }> = [];
+    const detected: Array<{ entityType: string; matchedText: string; action: string }> = [];
     const blockedEntities: string[] = [];
-    let counter = 1;
+    let isBlocked = false;
 
     for (const ent of sorted) {
-      const pol = policyMap.get(ent.entity_type.toUpperCase()) || { action: 'TOKENIZE', enabled: true, minScore: 0.6 };
-      if (pol.enabled === false) continue;
-      if (ent.score < (pol.minScore ?? 0.6)) continue;
+      const match = text.slice(ent.start, ent.end);
+      const policy = policyMap.get(ent.entity_type.toUpperCase());
+      const action = policy ? policy.action : 'TOKENIZE';
+      const enabled = policy ? policy.enabled !== false : true;
 
-      const matchedText = text.slice(ent.start, ent.end);
-      detected.unshift({
+      if (!enabled) {
+        continue;
+      }
+
+      detected.push({
         entityType: ent.entity_type,
-        matchedText,
-        action: pol.action,
-        score: ent.score,
+        matchedText: match,
+        action,
       });
 
-      if (pol.action === 'BLOCK') {
-        if (!blockedEntities.includes(ent.entity_type)) blockedEntities.push(ent.entity_type);
-      } else if (pol.action === 'REDACT') {
+      if (action === 'BLOCK') {
+        isBlocked = true;
+        blockedEntities.push(ent.entity_type);
+      } else if (action === 'REDACT') {
         transformed = transformed.slice(0, ent.start) + `[REDACTED_${ent.entity_type}]` + transformed.slice(ent.end);
-      } else if (pol.action === 'MASK') {
-        transformed = transformed.slice(0, ent.start) + maskValue(matchedText, ent.entity_type) + transformed.slice(ent.end);
-      } else if (pol.action === 'TOKENIZE') {
-        const pad = String(counter++).padStart(3, '0');
-        transformed = transformed.slice(0, ent.start) + `[PREFIX:${ent.entity_type}_${pad}]` + transformed.slice(ent.end);
+      } else if (action === 'MASK') {
+        const masked = clientMaskSim(match);
+        transformed = transformed.slice(0, ent.start) + masked + transformed.slice(ent.end);
+      } else if (action === 'TOKENIZE') {
+        transformed = transformed.slice(0, ent.start) + `[PREFIX:${ent.entity_type}_001]` + transformed.slice(ent.end);
       }
     }
 
     return reply.send({
-      transformedText: blockedEntities.length > 0 ? '' : transformed,
+      transformedText: transformed,
       detectedEntities: detected,
-      blocked: blockedEntities.length > 0,
+      blocked: isBlocked,
       blockedEntities,
       presidioLatencyMs: latencyMs,
     });
@@ -426,7 +474,17 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
   fastify.get('/admin/audit', async (req, reply) => {
     if (!verifyAdminAuth(req, reply)) return;
-    return reply.send({ events: metricsTracker.auditLogs });
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    let logs = metricsTracker.auditLogs;
+    if (startDate || endDate) {
+      const startMs = startDate ? new Date(startDate).getTime() : 0;
+      const endMs = endDate ? new Date(endDate).getTime() : Infinity;
+      logs = logs.filter((log) => {
+        const t = new Date(log.timestamp).getTime();
+        return t >= startMs && t <= endMs;
+      });
+    }
+    return reply.send({ events: logs });
   });
 
   fastify.get('/admin/upstream', async (req, reply) => {

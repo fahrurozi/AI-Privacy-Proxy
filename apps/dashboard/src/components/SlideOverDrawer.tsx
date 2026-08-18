@@ -64,43 +64,44 @@ export function SlideOverDrawer({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Smooth Backdrop with Fade in/out */}
+      {/* Scrim with Smooth Fade */}
       <div
-        className={`fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300 ease-out ${
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out ${
           active ? 'opacity-100' : 'opacity-0'
         }`}
         onClick={onClose}
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10 pointer-events-none">
+        {/* Material 3 Side Sheet Container */}
         <div
-          className={`w-screen ${widthClass} bg-[#0c1220] border-l border-slate-800/90 shadow-2xl flex flex-col pointer-events-auto transform transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            active ? 'translate-x-0 shadow-2xl shadow-black/80' : 'translate-x-full'
+          className={`w-screen ${widthClass} bg-surface-container-low border-l border-outline-variant/60 shadow-m3-4 flex flex-col pointer-events-auto transform transition-transform duration-300 ease-[cubic-bezier(0.2,0,0,1)] ${
+            active ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
-          {/* Drawer Header */}
-          <div className="p-6 border-b border-slate-800/90 flex items-start justify-between bg-slate-950/70 backdrop-blur">
+          {/* Side Sheet Header */}
+          <div className="p-6 border-b border-outline-variant/40 flex items-start justify-between bg-surface-container/80 backdrop-blur">
             <div>
-              <h2 className="text-base font-bold text-slate-100 tracking-tight">{title}</h2>
-              {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
+              <h2 className="text-base font-bold text-on-surface tracking-tight">{title}</h2>
+              {subtitle && <p className="text-xs text-on-surface-variant mt-1">{subtitle}</p>}
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition"
+              className="p-2 text-on-surface-variant hover:text-on-surface rounded-m3-full hover:bg-surface-container-high transition"
               title="Close panel (Esc)"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Drawer Body (Scrollable) */}
-          <div className="flex-1 p-6 overflow-y-auto space-y-5 text-sm text-slate-300">
+          {/* Side Sheet Body (Scrollable) */}
+          <div className="flex-1 p-6 overflow-y-auto space-y-5 text-sm text-on-surface">
             {children}
           </div>
 
-          {/* Drawer Footer */}
+          {/* Side Sheet Footer */}
           {footer && (
-            <div className="p-4 border-t border-slate-800/90 bg-slate-950/80 backdrop-blur flex items-center justify-end gap-3">
+            <div className="p-4 border-t border-outline-variant/40 bg-surface-container/90 backdrop-blur flex items-center justify-end gap-3">
               {footer}
             </div>
           )}

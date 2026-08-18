@@ -2,11 +2,10 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { CustomRecognizerConfig } from '@ai-privacy-proxy/shared';
 import { fetchApi } from '../lib/api.js';
 import { SlideOverDrawer } from '../components/SlideOverDrawer.js';
-import { Sparkles, Plus, Trash2, CheckCircle2, AlertCircle, Play, Code2, ShieldAlert } from 'lucide-react';
+import { Sparkles, Plus, Trash2, CheckCircle2, AlertCircle, Play, Code2 } from 'lucide-react';
 
 export function RecognizersPage() {
   const [customList, setCustomList] = useState<CustomRecognizerConfig[]>([]);
-  const [registeredList, setRegisteredList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -23,7 +22,6 @@ export function RecognizersPage() {
       setLoading(true);
       const data = await fetchApi<{ custom: CustomRecognizerConfig[]; registered: any[] }>('/admin/recognizers');
       setCustomList(data.custom || []);
-      setRegisteredList(data.registered || []);
     } catch (err: any) {
       setStatusMessage({ text: `Failed to load recognizers: ${err.message}`, type: 'error' });
     } finally {
@@ -94,59 +92,61 @@ export function RecognizersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Custom Entity Recognizers</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">
+            Custom Entity Recognizers
+          </h1>
+          <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
             Define regular expressions or pattern rules to detect custom secrets, IDs, tokens, and domain PII.
           </p>
         </div>
         <button
           onClick={() => setShowAddDrawer(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-blue-600/20"
+          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-on text-xs font-semibold rounded-m3-full shadow-m3-1 hover:shadow-m3-2 transition-all m3-state-layer"
         >
           <Plus className="w-4 h-4" /> Add Custom Recognizer
         </button>
       </div>
 
       {statusMessage && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 text-sm border ${
+        <div className={`p-4 rounded-m3-lg flex items-center gap-3 text-xs font-semibold border ${
           statusMessage.type === 'success'
-            ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
-            : 'bg-red-950/40 border-red-800/50 text-red-300'
+            ? 'bg-secondary-container text-secondary-on-container border-secondary/30'
+            : 'bg-error-container text-error-on-container border-error/30'
         }`}>
-          {statusMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <AlertCircle className="w-5 h-5 text-red-400" />}
+          {statusMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           {statusMessage.text}
         </div>
       )}
 
       {/* Registered Custom Recognizers List */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
-        <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-          <Code2 className="w-4 h-4 text-blue-400" /> Active Custom Recognizers
+      <div className="bg-surface-container-low border border-outline-variant/60 p-6 sm:p-8 rounded-m3-xl space-y-4 shadow-m3-1">
+        <h2 className="text-sm font-bold text-on-surface flex items-center gap-2">
+          <Code2 className="w-4 h-4 text-primary" /> Active Custom Recognizers
         </h2>
         {customList.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {customList.map((rec) => (
-              <div key={rec.id || rec.name} className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex items-start justify-between">
-                <div>
+              <div key={rec.id || rec.name} className="p-5 bg-surface-container border border-outline-variant/50 rounded-m3-lg flex items-start justify-between">
+                <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-200">{rec.name}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    <span className="text-sm font-bold text-on-surface">{rec.name}</span>
+                    <span className="px-2.5 py-0.5 rounded-m3-full text-[10px] font-mono font-bold bg-primary-container text-primary-on-container">
                       {rec.entityType}
                     </span>
                   </div>
-                  <div className="mt-2 font-mono text-xs text-blue-300 break-all bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                  <div className="font-mono text-xs text-primary break-all bg-surface-container-highest p-3 rounded-m3-md border border-outline-variant/40">
                     {rec.pattern}
                   </div>
-                  <div className="mt-2 text-xs text-slate-500">
-                    Confidence: {(rec.score * 100).toFixed(0)}%
+                  <div className="text-xs text-on-surface-variant font-medium">
+                    Confidence Threshold: <strong className="text-on-surface">{(rec.score * 100).toFixed(0)}%</strong>
                   </div>
                 </div>
                 <button
                   onClick={() => rec.id && handleDelete(rec.id)}
-                  className="p-1.5 text-slate-400 hover:text-red-400 rounded-lg hover:bg-slate-900 transition ml-2"
+                  className="p-2 text-on-surface-variant hover:text-error hover:bg-error-container rounded-m3-full transition ml-2"
                   title="Delete recognizer"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -155,10 +155,10 @@ export function RecognizersPage() {
             ))}
           </div>
         ) : (
-          <div className="p-10 text-center text-slate-500 text-xs flex flex-col items-center justify-center">
-            <Sparkles className="w-8 h-8 mb-2 opacity-30" />
-            <span>No custom regex recognizers added yet.</span>
-            <span className="mt-1 text-slate-600">Click "Add Custom Recognizer" to create one.</span>
+          <div className="p-12 text-center text-on-surface-variant text-xs flex flex-col items-center justify-center">
+            <Sparkles className="w-8 h-8 mb-2 opacity-30 text-primary" />
+            <span className="font-medium">No custom regex recognizers added yet.</span>
+            <span className="mt-1 text-on-surface-variant/80">Click "Add Custom Recognizer" to create one.</span>
           </div>
         )}
       </div>
@@ -174,14 +174,14 @@ export function RecognizersPage() {
             <button
               type="button"
               onClick={() => setShowAddDrawer(false)}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition"
+              className="px-4 py-2 bg-surface-container-high text-on-surface-variant hover:text-on-surface text-xs font-semibold rounded-m3-full transition"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleAdd}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-blue-600/20"
+              className="px-5 py-2 bg-primary text-primary-on text-xs font-semibold rounded-m3-full shadow-m3-1 hover:shadow-m3-2 transition-all m3-state-layer"
             >
               Save & Activate Recognizer
             </button>
@@ -190,45 +190,45 @@ export function RecognizersPage() {
       >
         <form onSubmit={handleAdd} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Recognizer Name</label>
+            <label className="block text-xs font-bold text-on-surface mb-1.5">Recognizer Name</label>
             <input
               type="text"
               placeholder="e.g. AWS_SECRET_TOKEN or ORG_BADGE_ID"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-md px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:border-primary"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Target Entity Type</label>
+            <label className="block text-xs font-bold text-on-surface mb-1.5">Target Entity Type</label>
             <input
               type="text"
               placeholder="e.g. API_KEY or CUSTOM_SECRET"
               value={entityType}
               onChange={(e) => setEntityType(e.target.value)}
-              className="w-full bg-slate-950 font-mono border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-blue-400 focus:outline-none focus:border-blue-500"
+              className="w-full bg-surface-container font-mono border border-outline-variant/60 rounded-m3-md px-3.5 py-2.5 text-xs text-primary focus:outline-none focus:border-primary"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Regular Expression (Regex)</label>
+            <label className="block text-xs font-bold text-on-surface mb-1.5">Regular Expression (Regex)</label>
             <input
               type="text"
               placeholder="e.g. \\bAKIA[0-9A-Z]{16}\\b"
               value={pattern}
               onChange={(e) => setPattern(e.target.value)}
-              className="w-full bg-slate-950 font-mono border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-blue-400 focus:outline-none focus:border-blue-500"
+              className="w-full bg-surface-container font-mono border border-outline-variant/60 rounded-m3-md px-3.5 py-2.5 text-xs text-primary focus:outline-none focus:border-primary"
               required
             />
           </div>
 
           <div>
-            <div className="flex items-center justify-between text-xs font-medium text-slate-300 mb-1.5">
+            <div className="flex items-center justify-between text-xs font-bold text-on-surface mb-1.5">
               <span>Confidence Threshold</span>
-              <span className="font-mono text-blue-400 font-semibold">{(score * 100).toFixed(0)}%</span>
+              <span className="font-mono text-primary font-bold">{(score * 100).toFixed(0)}%</span>
             </div>
             <input
               type="range"
@@ -237,29 +237,29 @@ export function RecognizersPage() {
               step="0.05"
               value={score}
               onChange={(e) => setScore(parseFloat(e.target.value))}
-              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-2 bg-surface-container-highest rounded-m3-full appearance-none cursor-pointer accent-primary"
             />
           </div>
 
           {/* Interactive Regex Test Box inside Drawer */}
-          <div className="p-4 bg-slate-950 border border-slate-800/90 rounded-xl space-y-2">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span className="flex items-center gap-1 font-medium text-slate-300">
-                <Play className="w-3.5 h-3.5 text-emerald-400" /> Live Match Tester
+          <div className="p-4 bg-surface-container border border-outline-variant/50 rounded-m3-lg space-y-2">
+            <div className="flex items-center justify-between text-xs text-on-surface-variant">
+              <span className="flex items-center gap-1 font-bold text-on-surface">
+                <Play className="w-3.5 h-3.5 text-secondary" /> Live Match Tester
               </span>
-              <span>Matches: <strong className="text-emerald-400 font-mono">{matches.length}</strong></span>
+              <span>Matches: <strong className="text-secondary font-mono">{matches.length}</strong></span>
             </div>
             <textarea
               rows={3}
               value={testInput}
               onChange={(e) => setTestInput(e.target.value)}
               placeholder="Type sample text here to test your regex matches in real time..."
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none font-mono"
+              className="w-full bg-surface-container-high border border-outline-variant/60 rounded-m3-md p-3 text-xs text-on-surface focus:outline-none font-mono"
             />
             {matches.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {matches.map((m, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-mono">
+                  <span key={i} className="px-2.5 py-1 rounded-m3-full bg-secondary-container text-secondary-on-container text-xs font-mono font-bold">
                     {m}
                   </span>
                 ))}

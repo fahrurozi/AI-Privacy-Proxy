@@ -457,11 +457,11 @@ export function PolicyPage() {
 
   const getActionBadgeColor = (action: PrivacyAction, enabled?: boolean) => {
     if (enabled === false) {
-      return 'bg-slate-800 text-slate-500 border-slate-700';
+      return 'bg-surface-container-high text-on-surface-variant/80 border-outline-variant/50';
     }
     switch (action) {
       case 'TOKENIZE':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        return 'bg-blue-500/10 text-primary border-blue-500/20';
       case 'MASK':
         return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
       case 'REDACT':
@@ -469,7 +469,7 @@ export function PolicyPage() {
       case 'BLOCK':
         return 'bg-red-500/10 text-red-400 border-red-500/20';
       case 'PASS':
-        return 'bg-slate-700/50 text-slate-400 border-slate-600';
+        return 'bg-surface-container-highest text-on-surface-variant border-slate-600';
     }
   };
 
@@ -478,8 +478,8 @@ export function PolicyPage() {
       {/* Top Header with Global Playground Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Privacy Policy Settings</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-2xl font-bold text-on-surface">Privacy Policy Settings</h1>
+          <p className="text-sm text-on-surface-variant">
             Define real-time protection actions (TOKENIZE, MASK, REDACT, BLOCK, PASS) per detected entity type.
           </p>
         </div>
@@ -487,7 +487,7 @@ export function PolicyPage() {
           {/* Global Playground Trigger */}
           <button
             onClick={() => setShowGlobalPlayground(true)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-indigo-600/90 to-blue-600/90 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-indigo-500/20 border border-indigo-400/30 transition"
+            className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-indigo-600/90 to-blue-600/90 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-semibold rounded-m3-md shadow-lg shadow-indigo-500/20 border border-indigo-400/30 transition"
           >
             <FlaskConical className="w-4 h-4 text-indigo-200" /> Try Policy Playground
           </button>
@@ -497,7 +497,7 @@ export function PolicyPage() {
               handleSourceChange('presidio');
               setShowAddDrawer(true);
             }}
-            className="flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition"
+            className="flex items-center gap-2 px-3.5 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-medium rounded-m3-md border border-outline-variant/50 transition"
           >
             <Plus className="w-4 h-4" /> Add Entity Rule
           </button>
@@ -505,7 +505,7 @@ export function PolicyPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-on text-xs font-semibold rounded-m3-md transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
           >
             <Save className="w-4 h-4" /> {saving ? 'Applying...' : 'Apply Changes'}
           </button>
@@ -513,7 +513,7 @@ export function PolicyPage() {
       </div>
 
       {statusMessage && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 text-sm border ${
+        <div className={`p-4 rounded-m3-lg flex items-center gap-3 text-sm border ${
           statusMessage.type === 'success'
             ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
             : 'bg-red-950/40 border-red-800/50 text-red-300'
@@ -524,10 +524,10 @@ export function PolicyPage() {
       )}
 
       {/* Policy Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+      <div className="bg-surface-container border border-outline-variant/60 rounded-m3-lg overflow-hidden shadow-lg">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+          <table className="w-full text-left text-xs text-on-surface">
+            <thead className="bg-surface-container-low text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/60">
               <tr>
                 <th className="px-6 py-4">Entity Type</th>
                 <th className="px-6 py-4">Active Action</th>
@@ -536,18 +536,18 @@ export function PolicyPage() {
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-slate-950/30">
+            <tbody className="divide-y divide-slate-800/60 bg-surface-container-low">
               {policies.map((p) => {
                 const isEnabled = p.enabled !== false;
                 return (
-                  <tr key={p.entityType} className={`hover:bg-slate-800/30 transition ${!isEnabled ? 'opacity-50' : ''}`}>
-                    <td className="px-6 py-4 font-mono font-medium text-slate-100">
+                  <tr key={p.entityType} className={`hover:bg-surface-container-high transition ${!isEnabled ? 'opacity-50' : ''}`}>
+                    <td className="px-6 py-4 font-mono font-medium text-on-surface">
                       <div className="flex items-center gap-2">
-                        <Shield className={`w-4 h-4 ${isEnabled ? 'text-blue-400' : 'text-slate-600'}`} />
+                        <Shield className={`w-4 h-4 ${isEnabled ? 'text-primary' : 'text-on-surface-variant/60'}`} />
                         <div>
-                          <span className="text-slate-100">{p.entityType}</span>
+                          <span className="text-on-surface">{p.entityType}</span>
                           {p.description && (
-                            <div className="text-[11px] text-slate-500 font-sans truncate max-w-xs mt-0.5">
+                            <div className="text-[11px] text-on-surface-variant/80 font-sans truncate max-w-xs mt-0.5">
                               {p.description}
                             </div>
                           )}
@@ -560,7 +560,7 @@ export function PolicyPage() {
                         disabled={!isEnabled}
                         value={p.action}
                         onChange={(e) => handleActionChange(p.entityType, e.target.value as PrivacyAction)}
-                        className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50 cursor-pointer"
+                        className="bg-surface-container-low border border-outline-variant/60 rounded-m3-md px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:border-blue-500 disabled:opacity-50 cursor-pointer"
                       >
                         {ACTIONS.map((act) => (
                           <option key={act} value={act}>{act}</option>
@@ -578,9 +578,9 @@ export function PolicyPage() {
                           step="0.05"
                           value={p.minScore ?? 0.7}
                           onChange={(e) => handleScoreChange(p.entityType, parseFloat(e.target.value))}
-                          className="w-24 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer disabled:opacity-40"
+                          className="w-24 h-1.5 bg-surface-container-high rounded-m3-md appearance-none cursor-pointer disabled:opacity-40"
                         />
-                        <span className="text-xs font-mono text-slate-400">
+                        <span className="text-xs font-mono text-on-surface-variant">
                           {((p.minScore ?? 0.7) * 100).toFixed(0)}%
                         </span>
                       </div>
@@ -601,27 +601,27 @@ export function PolicyPage() {
                           className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded border transition ${
                             isEnabled
                               ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
-                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                              : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:bg-surface-container-highest'
                           }`}
                           title={isEnabled ? 'Click to disable rule' : 'Click to enable rule'}
                         >
-                          {isEnabled ? <ToggleRight className="w-4 h-4 text-emerald-400" /> : <ToggleLeft className="w-4 h-4 text-slate-500" />}
+                          {isEnabled ? <ToggleRight className="w-4 h-4 text-emerald-400" /> : <ToggleLeft className="w-4 h-4 text-on-surface-variant/80" />}
                           <span>{isEnabled ? 'Enabled' : 'Disabled'}</span>
                         </button>
 
                         {/* 2. Detail Button (TO THE RIGHT OF ENABLE/DISABLE) */}
                         <button
                           onClick={() => openDetailDrawer(p)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition"
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded border border-outline-variant/50 transition"
                           title="View entity details, behavior explanation, and test playground"
                         >
-                          <Info className="w-3.5 h-3.5 text-blue-400" /> Detail
+                          <Info className="w-3.5 h-3.5 text-primary" /> Detail
                         </button>
 
                         {/* 3. Delete Button */}
                         <button
                           onClick={() => handleDeletePolicy(p.entityType)}
-                          className="p-1 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 transition ml-1"
+                          className="p-1 text-on-surface-variant/80 hover:text-red-400 rounded hover:bg-surface-container-high transition ml-1"
                           title="Delete entity rule"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -646,7 +646,7 @@ export function PolicyPage() {
         footer={
           <button
             onClick={() => setSelectedPolicyForDetail(null)}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition"
+            className="px-4 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-medium rounded-m3-md border border-outline-variant/50 transition"
           >
             Close
           </button>
@@ -655,29 +655,29 @@ export function PolicyPage() {
         {selectedPolicyForDetail && (
           <div className="space-y-5">
             {/* Description Card */}
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5">
-              <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Description & Pattern Scope</span>
-              <p className="text-xs text-slate-200 leading-relaxed">
+            <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-1.5">
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-on-surface-variant">Description & Pattern Scope</span>
+              <p className="text-xs text-on-surface leading-relaxed">
                 {selectedPolicyForDetail.description || 'No specific description provided for this entity rule.'}
               </p>
             </div>
 
             {/* Action Card */}
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-              <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Current Action Details</span>
+            <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-3">
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-on-surface-variant">Current Action Details</span>
               <div className="flex items-center gap-2">
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getActionBadgeColor(selectedPolicyForDetail.action, selectedPolicyForDetail.enabled)}`}>
                   {selectedPolicyForDetail.action}
                 </span>
-                <span className="text-xs text-slate-300">
+                <span className="text-xs text-on-surface">
                   {selectedPolicyForDetail.enabled !== false ? 'Rule is Enabled' : 'Rule is Disabled (Passing plaintext)'}
                 </span>
               </div>
 
-              <div className="text-xs text-slate-400 leading-relaxed pt-1">
+              <div className="text-xs text-on-surface-variant leading-relaxed pt-1">
                 {selectedPolicyForDetail.action === 'TOKENIZE' && (
                   <span>
-                    <strong>TOKENIZE:</strong> The detected entity is replaced with an ephemeral token (e.g. <code className="text-blue-400 font-mono">[PREFIX:{selectedPolicyForDetail.entityType}_001]</code>) and automatically restored to the original plaintext in LLM responses.
+                    <strong>TOKENIZE:</strong> The detected entity is replaced with an ephemeral token (e.g. <code className="text-primary font-mono">[PREFIX:{selectedPolicyForDetail.entityType}_001]</code>) and automatically restored to the original plaintext in LLM responses.
                   </span>
                 )}
                 {selectedPolicyForDetail.action === 'MASK' && (
@@ -704,20 +704,20 @@ export function PolicyPage() {
             </div>
 
             {/* Interactive Single-Entity Playground */}
-            <div className="p-4 bg-slate-950 border border-indigo-900/50 rounded-xl space-y-3 shadow-lg shadow-indigo-950/20">
+            <div className="p-4 bg-surface-container-low border border-indigo-900/50 rounded-m3-lg space-y-3 shadow-lg shadow-indigo-950/20">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
                   <Play className="w-3.5 h-3.5 text-indigo-400" /> Interactive Entity Playground
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <span className="text-[10px] text-on-surface-variant flex items-center gap-1">
                     <Cpu className="w-3 h-3 text-emerald-400" /> spaCy NLP Active
                   </span>
                   {SAMPLE_DATA[selectedPolicyForDetail.entityType] && (
                     <button
                       type="button"
                       onClick={() => setDetailTestInput(SAMPLE_DATA[selectedPolicyForDetail.entityType] || '')}
-                      className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                      className="text-[11px] text-primary hover:text-primary flex items-center gap-1"
                     >
                       <RefreshCw className="w-3 h-3" /> Load Preset
                     </button>
@@ -726,19 +726,19 @@ export function PolicyPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Input Sample Prompt</label>
+                <label className="block text-[11px] text-on-surface-variant mb-1">Input Sample Prompt</label>
                 <textarea
                   rows={3}
                   value={detailTestInput}
                   onChange={(e) => setDetailTestInput(e.target.value)}
                   placeholder="Enter sample prompt containing this entity..."
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-md p-2.5 text-xs text-on-surface font-mono focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               {/* Simulation Result Box */}
               <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center justify-between text-[11px] text-on-surface-variant">
                   <span>Transformation Result:</span>
                   <span className="font-mono">
                     Matches: <strong className="text-indigo-300">{activeDetailSimulation.detectedEntities.length}</strong>
@@ -746,14 +746,14 @@ export function PolicyPage() {
                 </div>
 
                 {activeDetailSimulation.blocked ? (
-                  <div className="p-3 bg-red-950/60 border border-red-800/60 rounded-lg text-xs text-red-300 flex items-start gap-2">
+                  <div className="p-3 bg-red-950/60 border border-red-800/60 rounded-m3-md text-xs text-red-300 flex items-start gap-2">
                     <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                     <div>
                       <strong>Request Terminated (400 Bad Request):</strong> Sensitive entity <code className="font-mono">{selectedPolicyForDetail.entityType}</code> triggered the BLOCK policy rule.
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-emerald-300 break-all">
+                  <div className="p-3 bg-surface-container border border-outline-variant/60 rounded-m3-md text-xs font-mono text-emerald-300 break-all">
                     {activeDetailSimulation.transformedText || detailTestInput}
                   </div>
                 )}
@@ -773,7 +773,7 @@ export function PolicyPage() {
         footer={
           <button
             onClick={() => setShowGlobalPlayground(false)}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition"
+            className="px-4 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-medium rounded-m3-md border border-outline-variant/50 transition"
           >
             Close Sandbox
           </button>
@@ -782,7 +782,7 @@ export function PolicyPage() {
         <div className="space-y-5">
           {/* Preset Prompts Buttons */}
           <div className="space-y-2">
-            <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Quick Test Templates</span>
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-on-surface-variant">Quick Test Templates</span>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -791,7 +791,7 @@ export function PolicyPage() {
                     'Invoice for Satoshi Nakamoto (satoshi@bitcoin.org). Payout 2.5 ETH to 0x71C8F794B32145429631994304244a1234567890. Signed by Alice Walker and Alan Walker.'
                   )
                 }
-                className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition"
+                className="px-2.5 py-1 text-xs bg-surface-container hover:bg-surface-container-high text-on-surface rounded-m3-md border border-outline-variant/60 transition"
               >
                 💼 Mixed Invoice & Crypto
               </button>
@@ -802,7 +802,7 @@ export function PolicyPage() {
                     'Deploying server at 192.168.1.100. Admin password SuperSecret123! with API key sk-proj-1234567890abcdef1234567890abcdef.'
                   )
                 }
-                className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition"
+                className="px-2.5 py-1 text-xs bg-surface-container hover:bg-surface-container-high text-on-surface rounded-m3-md border border-outline-variant/60 transition"
               >
                 🔐 Dev Secrets & Credentials
               </button>
@@ -813,7 +813,7 @@ export function PolicyPage() {
                     'Customer John Doe (john.doe@gmail.com) paid with Visa card 4532-1234-5678-9010 on cluster 10.0.0.1 in Jakarta.'
                   )
                 }
-                className="px-2.5 py-1 text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition"
+                className="px-2.5 py-1 text-xs bg-surface-container hover:bg-surface-container-high text-on-surface rounded-m3-md border border-outline-variant/60 transition"
               >
                 💳 Payment & Personal PII
               </button>
@@ -823,8 +823,8 @@ export function PolicyPage() {
           {/* Prompt Input */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-300">Incoming Raw User Prompt (Client Side)</label>
-              <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+              <label className="block text-xs font-semibold text-on-surface">Incoming Raw User Prompt (Client Side)</label>
+              <span className="text-[10px] text-on-surface-variant flex items-center gap-1 font-mono">
                 <Cpu className="w-3 h-3 text-emerald-400" /> Connected to Presidio Engine
               </span>
             </div>
@@ -833,15 +833,15 @@ export function PolicyPage() {
               value={globalTestInput}
               onChange={(e) => setGlobalTestInput(e.target.value)}
               placeholder="Paste or type any prompt with PII/secrets to test all policy rules..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg p-3.5 text-xs text-on-surface font-mono focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           {/* Detected Entities Tags */}
-          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2.5">
+          <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-2.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-200">Detected Entities in Prompt:</span>
-              <span className="font-mono text-slate-400">Total: {activeGlobalSimulation.detectedEntities.length}</span>
+              <span className="font-semibold text-on-surface">Detected Entities in Prompt:</span>
+              <span className="font-mono text-on-surface-variant">Total: {activeGlobalSimulation.detectedEntities.length}</span>
             </div>
 
             {activeGlobalSimulation.detectedEntities.length > 0 ? (
@@ -849,22 +849,22 @@ export function PolicyPage() {
                 {activeGlobalSimulation.detectedEntities.map((d: any, i: number) => (
                   <span
                     key={i}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border ${getActionBadgeColor(d.action)}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-m3-md text-xs font-mono border ${getActionBadgeColor(d.action)}`}
                   >
                     <span className="font-semibold">{d.entityType}</span>
-                    <span className="text-slate-300">"{d.matchedText}"</span>
-                    <span className="text-[10px] text-slate-400">({d.action})</span>
+                    <span className="text-on-surface">"{d.matchedText}"</span>
+                    <span className="text-[10px] text-on-surface-variant">({d.action})</span>
                   </span>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-slate-500 italic">No sensitive entities detected under current active policy rules.</div>
+              <div className="text-xs text-on-surface-variant/80 italic">No sensitive entities detected under current active policy rules.</div>
             )}
           </div>
 
           {/* Sanitized LLM Payload Output */}
           <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-300 flex items-center justify-between">
+            <label className="block text-xs font-semibold text-on-surface flex items-center justify-between">
               <span>Sanitized Payload (What the Upstream LLM Receives)</span>
               {activeGlobalSimulation.blocked && (
                 <span className="text-xs text-red-400 font-semibold font-mono">STATUS: BLOCKED</span>
@@ -872,7 +872,7 @@ export function PolicyPage() {
             </label>
 
             {activeGlobalSimulation.blocked ? (
-              <div className="p-4 bg-red-950/60 border border-red-800/80 rounded-xl text-xs text-red-200 space-y-1">
+              <div className="p-4 bg-red-950/60 border border-red-800/80 rounded-m3-lg text-xs text-red-200 space-y-1">
                 <div className="flex items-center gap-2 font-semibold text-red-300">
                   <ShieldAlert className="w-4 h-4 text-red-400" /> Request Intercepted & Blocked
                 </div>
@@ -881,7 +881,7 @@ export function PolicyPage() {
                 </p>
               </div>
             ) : (
-              <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-blue-300 leading-relaxed break-all">
+              <div className="p-3.5 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg text-xs font-mono text-primary leading-relaxed break-all">
                 {activeGlobalSimulation.transformedText || globalTestInput}
               </div>
             )}
@@ -901,7 +901,7 @@ export function PolicyPage() {
             <button
               type="button"
               onClick={() => setShowAddDrawer(false)}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition"
+              className="px-3.5 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs rounded-m3-md border border-outline-variant/50 transition"
             >
               Cancel
             </button>
@@ -909,7 +909,7 @@ export function PolicyPage() {
               type="button"
               onClick={handleAddPolicy}
               disabled={!newEntity.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
+              className="px-4 py-2 bg-primary text-primary-on text-xs font-semibold rounded-m3-md transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
             >
               Save & Activate Rule
             </button>
@@ -919,51 +919,51 @@ export function PolicyPage() {
         <form onSubmit={handleAddPolicy} className="space-y-5">
           {/* 1. Two-Way Source Selector Tabs */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-2">1. Choose Entity Detector Source</label>
+            <label className="block text-xs font-semibold text-on-surface mb-2">1. Choose Entity Detector Source</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => handleSourceChange('presidio')}
-                className={`p-3 rounded-xl border text-left flex flex-col justify-between transition ${
+                className={`p-3 rounded-m3-lg border text-left flex flex-col justify-between transition ${
                   entitySource === 'presidio'
-                    ? 'bg-blue-600/15 border-blue-500 text-blue-300 ring-1 ring-blue-500/30'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                    ? 'bg-blue-600/15 border-blue-500 text-primary ring-1 ring-blue-500/30'
+                    : 'bg-surface-container-low border-outline-variant/60 text-on-surface-variant hover:bg-surface-container'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
-                  <Wand2 className="w-3.5 h-3.5 text-blue-400" /> Presidio AI Library
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-on-surface mb-1">
+                  <Wand2 className="w-3.5 h-3.5 text-primary" /> Presidio AI Library
                 </div>
-                <span className="text-[11px] text-slate-500 leading-tight">Built-in NLP language model</span>
+                <span className="text-[11px] text-on-surface-variant/80 leading-tight">Built-in NLP language model</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleSourceChange('custom')}
-                className={`p-3 rounded-xl border text-left flex flex-col justify-between transition ${
+                className={`p-3 rounded-m3-lg border text-left flex flex-col justify-between transition ${
                   entitySource === 'custom'
                     ? 'bg-indigo-600/15 border-indigo-500 text-indigo-300 ring-1 ring-indigo-500/30'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-900'
+                    : 'bg-surface-container-low border-outline-variant/60 text-on-surface-variant hover:bg-surface-container'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-200 mb-1">
+                <div className="flex items-center gap-1.5 font-semibold text-xs text-on-surface mb-1">
                   <Code className="w-3.5 h-3.5 text-indigo-400" /> Custom Pattern Regex
                 </div>
-                <span className="text-[11px] text-slate-500 leading-tight">Existing or new pattern matcher</span>
+                <span className="text-[11px] text-on-surface-variant/80 leading-tight">Existing or new pattern matcher</span>
               </button>
             </div>
           </div>
 
           {/* 2. Source Configuration */}
-          <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+          <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-3">
             {entitySource === 'presidio' ? (
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">
+                <label className="block text-xs font-semibold text-on-surface">
                   2. Select Presidio AI Entity Type
                 </label>
                 <select
                   value={newEntity}
                   onChange={(e) => handlePresidioEntitySelect(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-blue-300 font-mono focus:outline-none focus:border-blue-500 cursor-pointer"
+                  className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2.5 text-xs text-primary font-mono focus:outline-none focus:border-blue-500 cursor-pointer"
                 >
                   {STANDARD_PRESIDIO_ENTITIES.map((ent) => (
                     <option key={ent.id} value={ent.id}>
@@ -971,14 +971,14 @@ export function PolicyPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-slate-400 leading-relaxed bg-slate-900/60 p-2.5 rounded-lg border border-slate-850">
+                <p className="text-[11px] text-on-surface-variant leading-relaxed bg-surface-container p-2.5 rounded-m3-md border border-outline-variant/60">
                   {newDesc}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">2. Custom Pattern Option</label>
+                  <label className="text-xs font-semibold text-on-surface">2. Custom Pattern Option</label>
                   {customRecognizers.length > 0 && (
                     <div className="flex items-center gap-2 text-xs">
                       <button
@@ -991,10 +991,10 @@ export function PolicyPage() {
                             setNewDesc(`Custom pattern rule "${first.name}"`);
                           }
                         }}
-                        className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition ${
+                        className={`px-2.5 py-0.5 rounded-m3-md text-[11px] border transition ${
                           customMode === 'existing'
                             ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50'
-                            : 'bg-slate-900 text-slate-400 border-slate-800'
+                            : 'bg-surface-container text-on-surface-variant border-outline-variant/60'
                         }`}
                       >
                         Choose Existing
@@ -1008,10 +1008,10 @@ export function PolicyPage() {
                           setNewCustomPattern('\\b\\d{16}\\b');
                           setNewDesc('Indonesian 16-digit national ID');
                         }}
-                        className={`px-2.5 py-0.5 rounded-lg text-[11px] border transition ${
+                        className={`px-2.5 py-0.5 rounded-m3-md text-[11px] border transition ${
                           customMode === 'new'
                             ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50'
-                            : 'bg-slate-900 text-slate-400 border-slate-800'
+                            : 'bg-surface-container text-on-surface-variant border-outline-variant/60'
                         }`}
                       >
                         + Create New Regex
@@ -1025,7 +1025,7 @@ export function PolicyPage() {
                     <select
                       value={newEntity}
                       onChange={(e) => handleCustomEntitySelect(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2.5 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500 cursor-pointer"
                     >
                       {customRecognizers.map((rec) => (
                         <option key={rec.id || rec.name} value={rec.entityType}>
@@ -1033,28 +1033,28 @@ export function PolicyPage() {
                         </option>
                       ))}
                     </select>
-                    <p className="text-[11px] text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-850">
+                    <p className="text-[11px] text-on-surface-variant bg-surface-container p-2.5 rounded-m3-md border border-outline-variant/60">
                       {newDesc}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3 pt-1">
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                        Entity Type Name <span className="text-slate-500">(UPPERCASE Identifier)</span>
+                      <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
+                        Entity Type Name <span className="text-on-surface-variant/80">(UPPERCASE Identifier)</span>
                       </label>
                       <input
                         type="text"
                         placeholder="e.g. NIK_KTP or PROJECT_CODE"
                         value={newEntity}
                         onChange={(e) => setNewEntity(e.target.value.toUpperCase().replace(/\s+/g, '_'))}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                      <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                         Recognizer Display Name
                       </label>
                       <input
@@ -1062,13 +1062,13 @@ export function PolicyPage() {
                         placeholder="e.g. Indonesian KTP Number"
                         value={newCustomRecName}
                         onChange={(e) => setNewCustomRecName(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-indigo-500"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                      <label className="block text-[11px] font-medium text-on-surface-variant mb-1">
                         Regex Pattern (How the proxy detects this text)
                       </label>
                       <input
@@ -1076,15 +1076,15 @@ export function PolicyPage() {
                         placeholder="e.g. \\b\\d{16}\\b"
                         value={newCustomPattern}
                         onChange={(e) => setNewCustomPattern(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-indigo-300 font-mono focus:outline-none focus:border-indigo-500"
                         required
                       />
                     </div>
 
                     {/* Instant Live Match Box */}
-                    <div className="p-3 bg-slate-900/80 border border-slate-850 rounded-xl space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
-                        <span className="flex items-center gap-1 font-semibold text-slate-300">
+                    <div className="p-3 bg-surface-container border border-outline-variant/60 rounded-m3-lg space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-on-surface-variant">
+                        <span className="flex items-center gap-1 font-semibold text-on-surface">
                           <Play className="w-3 h-3 text-emerald-400" /> Live Pattern Test
                         </span>
                         <span>Matches: <strong className="text-emerald-400 font-mono">{liveRegexMatches.length}</strong></span>
@@ -1094,7 +1094,7 @@ export function PolicyPage() {
                         value={newCustomTestText}
                         onChange={(e) => setNewCustomTestText(e.target.value)}
                         placeholder="Type test sample here..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none"
+                        className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-md px-2.5 py-1.5 text-xs text-on-surface font-mono focus:outline-none"
                       />
                       {liveRegexMatches.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-1">
@@ -1114,11 +1114,11 @@ export function PolicyPage() {
 
           {/* 3. Action Selection */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">3. Protection Action</label>
+            <label className="block text-xs font-semibold text-on-surface mb-1.5">3. Protection Action</label>
             <select
               value={newAction}
               onChange={(e) => setNewAction(e.target.value as PrivacyAction)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:border-blue-500 cursor-pointer"
             >
               {ACTIONS.map((act) => (
                 <option key={act} value={act}>{act}</option>
@@ -1128,9 +1128,9 @@ export function PolicyPage() {
 
           {/* 4. Confidence Threshold Slider */}
           <div>
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-on-surface mb-1.5">
               <span>4. Confidence Threshold</span>
-              <span className="font-mono text-blue-400 font-bold">{((newScore) * 100).toFixed(0)}%</span>
+              <span className="font-mono text-primary font-bold">{((newScore) * 100).toFixed(0)}%</span>
             </div>
             <input
               type="range"
@@ -1139,19 +1139,19 @@ export function PolicyPage() {
               step="0.05"
               value={newScore}
               onChange={(e) => setNewScore(parseFloat(e.target.value))}
-              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-2 bg-surface-container-high rounded-m3-md appearance-none cursor-pointer"
             />
           </div>
 
           {/* 5. Description Textarea */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">5. Description (Optional)</label>
+            <label className="block text-xs font-semibold text-on-surface mb-1.5">5. Description (Optional)</label>
             <textarea
               rows={2}
               placeholder="Detailed explanation of what this entity rule identifies..."
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg p-3 text-xs text-on-surface focus:outline-none focus:border-blue-500"
             />
           </div>
         </form>

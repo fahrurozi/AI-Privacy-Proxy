@@ -43,7 +43,7 @@ const ENTITY_COLORS: Record<string, { bg: string; text: string; border: string; 
   SEED_PHRASE:      { bg: 'bg-red-950/80',    text: 'text-red-100',    border: 'border-red-700',    dot: 'bg-red-300' },
   ORGANIZATION:     { bg: 'bg-indigo-950/60', text: 'text-indigo-200', border: 'border-indigo-800', dot: 'bg-indigo-400' },
 };
-const DEFAULT_ENTITY_COLOR = { bg: 'bg-slate-800/60', text: 'text-slate-300', border: 'border-slate-700', dot: 'bg-slate-400' };
+const DEFAULT_ENTITY_COLOR = { bg: 'bg-surface-container-high', text: 'text-on-surface', border: 'border-outline-variant/50', dot: 'bg-slate-400' };
 
 function EntityTypeBadge({ type }: { type: string }) {
   const c = ENTITY_COLORS[type] || DEFAULT_ENTITY_COLOR;
@@ -564,21 +564,21 @@ export function ProvidersPage() {
     <div className="space-y-6 w-full">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Upstream AI Providers</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-2xl font-bold text-on-surface">Upstream AI Providers</h1>
+          <p className="text-sm text-on-surface-variant">
             Register multiple AI providers and routers. Test endpoints live in the interactive playground or copy proxy URLs.
           </p>
         </div>
         <button
           onClick={() => setShowAddDrawer(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition shrink-0 shadow-lg shadow-blue-600/20"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-m3-md transition shrink-0 shadow-lg shadow-blue-600/20"
         >
           <Plus className="w-4 h-4" /> Add Provider
         </button>
       </div>
 
       {statusMessage && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 text-sm border ${
+        <div className={`p-4 rounded-m3-lg flex items-center gap-3 text-sm border ${
           statusMessage.type === 'success'
             ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
             : 'bg-red-950/40 border-red-800/50 text-red-300'
@@ -589,56 +589,56 @@ export function ProvidersPage() {
       )}
 
       {/* Providers Table Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-        <div className="p-5 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs uppercase tracking-wider">
+      <div className="bg-surface-container border border-outline-variant/60 rounded-m3-lg overflow-hidden shadow-lg">
+        <div className="p-5 border-b border-outline-variant/60 bg-surface-container-low flex items-center justify-between">
+          <div className="flex items-center gap-2 text-on-surface font-semibold text-xs uppercase tracking-wider">
             <Globe className="w-4 h-4 text-blue-400" /> Registered Providers & Proxy Endpoints
           </div>
-          <span className="text-xs text-slate-400 font-mono">Total: {providers.length}</span>
+          <span className="text-xs text-on-surface-variant font-mono">Total: {providers.length}</span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+          <table className="w-full text-left text-xs text-on-surface">
+            <thead className="bg-surface-container-low text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/60">
               <tr>
                 <th className="px-5 py-3.5">Provider Name & Target</th>
                 <th className="px-5 py-3.5">Direct Proxy Endpoint</th>
                 <th className="px-5 py-3.5 text-right">Client Setup & Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-slate-950/30">
+            <tbody className="divide-y divide-slate-800/60 bg-surface-container-low">
               {providers.map((p) => {
                 const isCopied = copiedId === p.id;
                 const proxyUrl = getProxyBaseUrl(p.id);
 
                 return (
-                  <tr key={p.id} className="hover:bg-slate-800/30 transition">
+                  <tr key={p.id} className="hover:bg-surface-container-high transition">
                     <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-100 flex items-center gap-2">
+                      <div className="font-semibold text-on-surface flex items-center gap-2">
                         <span>{p.name}</span>
                         <span className="font-mono text-[10px] text-blue-400 bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-800/40">
                           id: {p.id}
                         </span>
                       </div>
-                      <div className="text-[11px] font-mono text-slate-400 truncate max-w-xs mt-1" title={p.baseUrl}>
+                      <div className="text-[11px] font-mono text-on-surface-variant truncate max-w-xs mt-1" title={p.baseUrl}>
                         Target: {p.baseUrl}
                       </div>
-                      {p.description && <div className="text-[11px] text-slate-500 mt-0.5">{p.description}</div>}
+                      {p.description && <div className="text-[11px] text-on-surface-variant/80 mt-0.5">{p.description}</div>}
                     </td>
 
                     <td className="px-5 py-4 font-mono">
                       <button
                         type="button"
                         onClick={() => handleCopyBaseUrl(p.id)}
-                        className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[11px] font-mono transition text-left ${
+                        className={`group flex items-center gap-2 px-3 py-1.5 rounded-m3-md border text-[11px] font-mono transition text-left ${
                           isCopied
                             ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-md shadow-emerald-950/40'
-                            : 'bg-slate-950 hover:bg-slate-900 border-slate-800 hover:border-slate-700 text-emerald-400'
+                            : 'bg-surface-container-low hover:bg-surface-container border-outline-variant/60 hover:border-outline-variant/50 text-emerald-400'
                         }`}
                         title="Click to copy Direct Proxy Endpoint URL"
                       >
                         <span className="truncate max-w-xs sm:max-w-md">{proxyUrl}</span>
-                        <span className="shrink-0 text-slate-500 group-hover:text-emerald-300 transition">
+                        <span className="shrink-0 text-on-surface-variant/80 group-hover:text-emerald-300 transition">
                           {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                         </span>
                         {isCopied && <span className="text-[10px] text-emerald-400 font-sans font-medium shrink-0">Copied!</span>}
@@ -650,7 +650,7 @@ export function ProvidersPage() {
                         {/* 1. Interactive Playground Button */}
                         <button
                           onClick={() => handleOpenPlayground(p)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-purple-600/20 to-blue-600/20 hover:from-purple-600/30 hover:to-blue-600/30 text-purple-300 border border-purple-500/30 rounded-lg transition text-xs font-semibold shadow-sm"
+                          className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-purple-600/20 to-blue-600/20 hover:from-purple-600/30 hover:to-blue-600/30 text-purple-300 border border-purple-500/30 rounded-m3-md transition text-xs font-semibold shadow-sm"
                           title="Open live playground to test requests with ephemeral secret key"
                         >
                           <FlaskConical className="w-3.5 h-3.5 text-purple-400" /> Playground
@@ -659,7 +659,7 @@ export function ProvidersPage() {
                         {/* 2. Edit Provider Button */}
                         <button
                           onClick={() => handleOpenEdit(p)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-m3-md border border-outline-variant/50 transition text-xs"
                           title="Edit provider settings and base URL"
                         >
                           <Pencil className="w-3.5 h-3.5 text-amber-400" /> Edit
@@ -668,17 +668,17 @@ export function ProvidersPage() {
                         {/* 3. Setup Guide Button */}
                         <button
                           onClick={() => setSelectedProviderForGuide(p)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs"
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-m3-md border border-outline-variant/50 transition text-xs"
                           title="View Claude Code, Cursor, and SDK setup instructions"
                         >
-                          <Terminal className="w-3.5 h-3.5 text-slate-400" /> Setup
+                          <Terminal className="w-3.5 h-3.5 text-on-surface-variant" /> Setup
                         </button>
 
                         {/* 4. Delete Provider */}
                         {providers.length > 1 && (
                           <button
                             onClick={() => handleDeleteProvider(p.id)}
-                            className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition"
+                            className="p-1.5 text-on-surface-variant/80 hover:text-red-400 rounded-m3-md hover:bg-surface-container-high transition"
                             title="Delete provider"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -706,7 +706,7 @@ export function ProvidersPage() {
             <button
               type="button"
               onClick={() => setSelectedProviderForEdit(null)}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition"
+              className="px-3.5 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs rounded-m3-md border border-outline-variant/50 transition"
             >
               Cancel
             </button>
@@ -714,7 +714,7 @@ export function ProvidersPage() {
               type="button"
               onClick={handleSaveEdit}
               disabled={isSavingEdit || !editName.trim() || !editBaseUrl.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-m3-md transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
             >
               {isSavingEdit ? 'Saving...' : 'Save Changes'}
             </button>
@@ -724,53 +724,53 @@ export function ProvidersPage() {
         {selectedProviderForEdit && (
           <form onSubmit={handleSaveEdit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Provider ID <span className="text-slate-500 font-normal">(Permanent path identifier)</span>
+              <label className="block text-xs font-semibold text-on-surface mb-1">
+                Provider ID <span className="text-on-surface-variant/80 font-normal">(Permanent path identifier)</span>
               </label>
               <input
                 type="text"
                 value={selectedProviderForEdit.id}
                 disabled
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 font-mono opacity-80 cursor-not-allowed"
+                className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface-variant font-mono opacity-80 cursor-not-allowed"
               />
-              <p className="text-[10px] text-slate-500 mt-1 font-mono">
+              <p className="text-[10px] text-on-surface-variant/80 mt-1 font-mono">
                 Direct URL: {getProxyBaseUrl(selectedProviderForEdit.id)}
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Display Name</label>
+              <label className="block text-xs font-semibold text-on-surface mb-1">Display Name</label>
               <input
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Target Upstream Base URL</label>
+              <label className="block text-xs font-semibold text-on-surface mb-1">Target Upstream Base URL</label>
               <input
                 type="url"
                 value={editBaseUrl}
                 onChange={(e) => setEditBaseUrl(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500"
                 required
               />
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-[10px] text-on-surface-variant/80 mt-1">
                 Example: https://api.openai.com or http://9router.mfahrurozi.my.id/api/v1
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Description (Optional)</label>
+              <label className="block text-xs font-semibold text-on-surface mb-1">Description (Optional)</label>
               <input
                 type="text"
                 value={editDesc}
                 onChange={(e) => setEditDesc(e.target.value)}
                 placeholder="Provider description"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-blue-500"
               />
             </div>
           </form>
@@ -787,29 +787,29 @@ export function ProvidersPage() {
         footer={
           <button
             onClick={() => setSelectedProviderForPlayground(null)}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition"
+            className="px-4 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-medium rounded-m3-md border border-outline-variant/50 transition"
           >
             Close Playground
           </button>
         }
       >
         {selectedProviderForPlayground && (
-          <div className="space-y-5 text-xs text-slate-300 leading-relaxed">
+          <div className="space-y-5 text-xs text-on-surface leading-relaxed">
             {/* Ephemeral Key Warning Banner */}
-            <div className="p-3.5 bg-blue-950/30 border border-blue-800/40 rounded-xl flex items-start gap-3">
+            <div className="p-3.5 bg-blue-950/30 border border-blue-800/40 rounded-m3-lg flex items-start gap-3">
               <Key className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
               <div className="space-y-0.5">
                 <div className="font-semibold text-blue-200 text-xs">Ephemeral In-Memory Secret Key</div>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-on-surface-variant">
                   Your secret key is stored <strong>only in browser memory for this session</strong>. It is never saved to database or localStorage, and is destroyed immediately when you close this window.
                 </p>
               </div>
             </div>
 
             {/* Step 1: Input Ephemeral Key & Test Connection */}
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-              <label className="block text-xs font-semibold text-slate-200">
-                1. Provider API Secret Key <span className="text-slate-500 font-normal">({selectedProviderForPlayground.name})</span>
+            <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-3">
+              <label className="block text-xs font-semibold text-on-surface">
+                1. Provider API Secret Key <span className="text-on-surface-variant/80 font-normal">({selectedProviderForPlayground.name})</span>
               </label>
 
               <div className="flex gap-2">
@@ -819,12 +819,12 @@ export function ProvidersPage() {
                     placeholder="sk-... or provider authentication token"
                     value={ephemeralKey}
                     onChange={(e) => setEphemeralKey(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500 pr-10"
+                    className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3.5 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowKey(!showKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/80 hover:text-on-surface"
                   >
                     {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
@@ -834,7 +834,7 @@ export function ProvidersPage() {
                   type="button"
                   onClick={handleTestConnection}
                   disabled={testingConnection || !ephemeralKey.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl transition disabled:opacity-50 shrink-0 shadow-md shadow-blue-600/20"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-m3-lg transition disabled:opacity-50 shrink-0 shadow-md shadow-blue-600/20"
                 >
                   {testingConnection ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                   <span>{testingConnection ? 'Testing...' : 'Test Connection'}</span>
@@ -843,7 +843,7 @@ export function ProvidersPage() {
 
               {/* Connection Status Indicator */}
               {connectionStatus && (
-                <div className={`p-3 rounded-lg text-[11px] flex items-center gap-2 border ${
+                <div className={`p-3 rounded-m3-md text-[11px] flex items-center gap-2 border ${
                   connectionStatus.connected
                     ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
                     : 'bg-red-950/40 border-red-800/50 text-red-300'
@@ -859,9 +859,9 @@ export function ProvidersPage() {
             </div>
 
             {/* Step 2: Model Selection (Populated dynamically from router) */}
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+            <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-slate-200">
+                <label className="block text-xs font-semibold text-on-surface">
                   2. Select AI Model
                 </label>
                 {availableModels.length > 0 ? (
@@ -869,7 +869,7 @@ export function ProvidersPage() {
                     {availableModels.length} models from router
                   </span>
                 ) : (
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-[10px] text-on-surface-variant">
                     Test connection above to load models
                   </span>
                 )}
@@ -880,7 +880,7 @@ export function ProvidersPage() {
                   <select
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500"
                   >
                     {availableModels.map((m) => (
                       <option key={m} value={m}>
@@ -896,7 +896,7 @@ export function ProvidersPage() {
                       placeholder="e.g. meta-llama/llama-3-70b"
                       value={customModelInput}
                       onChange={(e) => setCustomModelInput(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                      className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500"
                     />
                   )}
                 </div>
@@ -907,9 +907,9 @@ export function ProvidersPage() {
                     placeholder="Enter model ID (e.g. gpt-4o, claude-3-5-sonnet, deepseek-chat)"
                     value={customModelInput}
                     onChange={(e) => setCustomModelInput(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                    className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500"
                   />
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[10px] text-on-surface-variant/80">
                     Tip: Click <strong>Test Connection</strong> above to automatically fetch available models from this router.
                   </p>
                 </div>
@@ -917,9 +917,9 @@ export function ProvidersPage() {
             </div>
 
             {/* Step 3: Interactive Prompt Input */}
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+            <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                <label className="block text-xs font-semibold text-on-surface flex items-center gap-1.5">
                   <Shield className="w-3.5 h-3.5 text-blue-400" /> 3. Test Prompt (Contains Sensitive PII)
                 </label>
                 <div className="flex items-center gap-1.5 text-[10px]">
@@ -952,7 +952,7 @@ export function ProvidersPage() {
                 rows={3}
                 value={playgroundPrompt}
                 onChange={(e) => setPlaygroundPrompt(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500 resize-y"
+                className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-lg p-3 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500 resize-y"
                 placeholder="Enter prompt containing sensitive data..."
               />
 
@@ -961,7 +961,7 @@ export function ProvidersPage() {
                   type="button"
                   onClick={handleSendPlaygroundRequest}
                   disabled={isSendingRequest || !ephemeralKey.trim() || !playgroundPrompt.trim()}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition disabled:opacity-50 shadow-lg shadow-emerald-600/20"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-m3-lg transition disabled:opacity-50 shadow-lg shadow-emerald-600/20"
                 >
                   {isSendingRequest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   <span>{isSendingRequest ? 'Intercepting & Sanitizing...' : 'Send Request via Privacy Proxy'}</span>
@@ -971,7 +971,7 @@ export function ProvidersPage() {
 
             {/* Error Message */}
             {playgroundError && (
-              <div className="p-3.5 bg-red-950/40 border border-red-800/50 rounded-xl text-red-300 text-xs flex items-start gap-2.5">
+              <div className="p-3.5 bg-red-950/40 border border-red-800/50 rounded-m3-lg text-red-300 text-xs flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                 <div className="break-all">{playgroundError}</div>
               </div>
@@ -979,18 +979,18 @@ export function ProvidersPage() {
 
             {/* Step 4: 3-Stage Privacy Verification Inspector */}
             {playgroundResponse && (
-              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-4 shadow-xl">
+              <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-4 shadow-xl">
                 {/* Meta Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800/80">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-outline-variant/60">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-200 text-xs flex items-center gap-1.5">
+                    <span className="font-semibold text-on-surface text-xs flex items-center gap-1.5">
                       <Shield className="w-3.5 h-3.5 text-emerald-400" /> 4. Privacy Inspection & Verification
                     </span>
                     <span className="font-mono text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-900/50">
                       HTTP {playgroundResponse.status} OK
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+                  <div className="flex items-center gap-2 text-[11px] text-on-surface-variant font-mono">
                     <span>⚡ {playgroundResponse.latencyMs}ms total</span>
                     {playgroundResponse.tokensUsed && <span>📊 {playgroundResponse.tokensUsed} tokens</span>}
                   </div>
@@ -998,8 +998,8 @@ export function ProvidersPage() {
 
                 {/* Process Time Breakdown */}
                 {(playgroundResponse.llmMs! > 0 || playgroundResponse.presidioMs! > 0) && (
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2.5">
-                    <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold flex items-center gap-1.5">
+                  <div className="bg-surface-container border border-outline-variant/60 rounded-m3-lg p-3 space-y-2.5">
+                    <div className="text-[10px] uppercase tracking-wider text-on-surface-variant font-semibold flex items-center gap-1.5">
                       <Activity className="w-3 h-3 text-blue-400" />
                       <span>Process Time Breakdown</span>
                     </div>
@@ -1007,7 +1007,7 @@ export function ProvidersPage() {
                       {/* LLM bar */}
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-amber-400 font-semibold w-24 shrink-0">LLM Latency</span>
-                        <div className="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2.5 bg-surface-container-high rounded-full overflow-hidden">
                           <div
                             className="h-full bg-amber-500 rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(100, ((playgroundResponse.llmMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
@@ -1020,7 +1020,7 @@ export function ProvidersPage() {
                       {/* Presidio bar */}
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-blue-400 font-semibold w-24 shrink-0">PII Analysis</span>
-                        <div className="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2.5 bg-surface-container-high rounded-full overflow-hidden">
                           <div
                             className="h-full bg-blue-500 rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(100, ((playgroundResponse.presidioMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
@@ -1033,7 +1033,7 @@ export function ProvidersPage() {
                       {/* Proxy overhead bar */}
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-emerald-400 font-semibold w-24 shrink-0">Proxy Overhead</span>
-                        <div className="flex-1 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2.5 bg-surface-container-high rounded-full overflow-hidden">
                           <div
                             className="h-full bg-emerald-600 rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(100, ((playgroundResponse.proxyOverheadMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
@@ -1048,14 +1048,14 @@ export function ProvidersPage() {
                 )}
 
                 {/* 3-View Tab Switcher */}
-                <div className="grid grid-cols-3 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800 text-[11px] font-medium">
+                <div className="grid grid-cols-3 gap-1 p-1 bg-surface-container rounded-m3-lg border border-outline-variant/60 text-[11px] font-medium">
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('sent_external')}
-                    className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition text-center ${
+                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center ${
                       activePlaygroundTab === 'sent_external'
                         ? 'bg-blue-600 text-white shadow'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
                     <Lock className="w-3 h-3 shrink-0" />
@@ -1065,10 +1065,10 @@ export function ProvidersPage() {
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('raw_external')}
-                    className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition text-center ${
+                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center ${
                       activePlaygroundTab === 'raw_external'
                         ? 'bg-amber-600 text-white shadow'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
                     <Cpu className="w-3 h-3 shrink-0" />
@@ -1078,10 +1078,10 @@ export function ProvidersPage() {
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('client')}
-                    className={`py-2 px-2 rounded-lg flex items-center justify-center gap-1.5 transition text-center ${
+                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center ${
                       activePlaygroundTab === 'client'
                         ? 'bg-emerald-600 text-white shadow'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
                     <Sparkles className="w-3 h-3 shrink-0" />
@@ -1100,10 +1100,10 @@ export function ProvidersPage() {
                         Surrogate Tokens Only • Zero PII Leak
                       </span>
                     </div>
-                    <div className="p-3.5 bg-blue-950/20 border border-blue-900/50 rounded-xl font-mono text-xs text-blue-100 whitespace-pre-wrap leading-relaxed">
+                    <div className="p-3.5 bg-blue-950/20 border border-blue-900/50 rounded-m3-lg font-mono text-xs text-blue-100 whitespace-pre-wrap leading-relaxed">
                       {playgroundResponse.sanitizedPrompt || playgroundPrompt}
                     </div>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[10px] text-on-surface-variant">
                       Seluruh identitas asli (nama, email, alamat crypto) telah digantikan dengan token acak sebelum keluar dari server Anda.
                     </p>
                   </div>
@@ -1120,10 +1120,10 @@ export function ProvidersPage() {
                         Tokenized AI Completion
                       </span>
                     </div>
-                    <div className="p-3.5 bg-amber-950/20 border border-amber-900/50 rounded-xl font-mono text-xs text-amber-100 whitespace-pre-wrap leading-relaxed">
+                    <div className="p-3.5 bg-amber-950/20 border border-amber-900/50 rounded-m3-lg font-mono text-xs text-amber-100 whitespace-pre-wrap leading-relaxed">
                       <HighlightedTokenText text={playgroundResponse.rawUpstreamResponse || playgroundResponse.text} legend={tokenLegend} />
                     </div>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[10px] text-on-surface-variant">
                       Model AI memproses dan menyusun jawaban menggunakan token acak tanpa pernah mengetahui data sensitif asli Anda.
                     </p>
                   </div>
@@ -1140,10 +1140,10 @@ export function ProvidersPage() {
                         Plaintext Restored Transparently
                       </span>
                     </div>
-                    <div className="p-3.5 bg-slate-900 border border-emerald-800/40 rounded-xl font-mono text-xs text-slate-100 whitespace-pre-wrap leading-relaxed">
+                    <div className="p-3.5 bg-surface-container border border-emerald-800/40 rounded-m3-lg font-mono text-xs text-on-surface whitespace-pre-wrap leading-relaxed">
                       {playgroundResponse.text}
                     </div>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[10px] text-on-surface-variant">
                       Privacy Proxy secara transparan memulihkan token kembali ke data asli sebelum diserahkan ke aplikasi/IDE Anda.
                     </p>
                   </div>
@@ -1151,16 +1151,16 @@ export function ProvidersPage() {
 
                 {/* Token Mapping Legend Table */}
                 {tokenLegend.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-slate-800/80 space-y-2">
-                    <div className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+                  <div className="mt-4 pt-4 border-t border-outline-variant/60 space-y-2">
+                    <div className="text-[11px] font-semibold text-on-surface flex items-center gap-1.5">
                       <Layers className="w-3.5 h-3.5 text-blue-400" />
                       <span>Token Transformation Legend</span>
-                      <span className="text-slate-500 font-normal ml-1">— {tokenLegend.length} entities intercepted</span>
+                      <span className="text-on-surface-variant/80 font-normal ml-1">— {tokenLegend.length} entities intercepted</span>
                     </div>
-                    <div className="overflow-x-auto rounded-xl border border-slate-800">
+                    <div className="overflow-x-auto rounded-m3-lg border border-outline-variant/60">
                       <table className="w-full text-[11px] font-mono">
                         <thead>
-                          <tr className="bg-slate-900/80 border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-400">
+                          <tr className="bg-surface-container border-b border-outline-variant/60 text-[10px] uppercase tracking-wider text-on-surface-variant">
                             <th className="px-3 py-2 text-left">Entity Type</th>
                             <th className="px-3 py-2 text-left">Surrogate Token Sent to AI</th>
                             <th className="px-3 py-2 text-left">Original Sensitive Value</th>
@@ -1168,7 +1168,7 @@ export function ProvidersPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
                           {tokenLegend.map((entry, idx) => (
-                            <tr key={idx} className="bg-slate-950 hover:bg-slate-900/50 transition">
+                            <tr key={idx} className="bg-surface-container-low hover:bg-surface-container transition">
                               <td className="px-3 py-2">
                                 <EntityTypeBadge type={entry.entityType} />
                               </td>
@@ -1197,18 +1197,18 @@ export function ProvidersPage() {
         footer={
           <button
             onClick={() => setSelectedProviderForGuide(null)}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition"
+            className="px-4 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-medium rounded-m3-md border border-outline-variant/50 transition"
           >
             Close
           </button>
         }
       >
         {selectedProviderForGuide && (
-          <div className="space-y-5 text-xs text-slate-300 leading-relaxed">
+          <div className="space-y-5 text-xs text-on-surface leading-relaxed">
             {/* Claude Code Integration */}
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-100 flex items-center gap-1.5">
+                <span className="font-semibold text-on-surface flex items-center gap-1.5">
                   <Terminal className="w-4 h-4 text-purple-400" /> 1. Claude Code CLI Setup
                 </span>
                 <button
@@ -1223,18 +1223,18 @@ export function ProvidersPage() {
                   <Copy className="w-3 h-3" /> Copy
                 </button>
               </div>
-              <p className="text-slate-400 text-[11px]">
+              <p className="text-on-surface-variant text-[11px]">
                 Run this command in your terminal before launching Claude Code:
               </p>
-              <div className="p-2.5 bg-slate-900 border border-slate-850 rounded-lg font-mono text-[11px] text-purple-300 break-all">
+              <div className="p-2.5 bg-surface-container border border-outline-variant/60 rounded-m3-md font-mono text-[11px] text-purple-300 break-all">
                 export ANTHROPIC_BASE_URL="{getClaudeBaseUrl(selectedProviderForGuide.id)}"
               </div>
             </div>
 
             {/* OpenAI / 9router / Cursor SDK Integration */}
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-100 flex items-center gap-1.5">
+                <span className="font-semibold text-on-surface flex items-center gap-1.5">
                   <Code2 className="w-4 h-4 text-emerald-400" /> 2. OpenAI SDK / Cursor / Aider
                 </span>
                 <button
@@ -1249,19 +1249,19 @@ export function ProvidersPage() {
                   <Copy className="w-3 h-3" /> Copy
                 </button>
               </div>
-              <div className="p-2.5 bg-slate-900 border border-slate-850 rounded-lg font-mono text-[11px] text-emerald-300 break-all">
+              <div className="p-2.5 bg-surface-container border border-outline-variant/60 rounded-m3-md font-mono text-[11px] text-emerald-300 break-all">
                 export OPENAI_BASE_URL="{getProxyBaseUrl(selectedProviderForGuide.id)}"
               </div>
             </div>
 
             {/* Curl Sample */}
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <div className="p-4 bg-surface-container-low border border-outline-variant/60 rounded-m3-lg space-y-2">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-slate-100 flex items-center gap-1.5">
+                <span className="font-semibold text-on-surface flex items-center gap-1.5">
                   <Terminal className="w-4 h-4 text-blue-400" /> 3. REST API / cURL Request
                 </span>
               </div>
-              <div className="p-2.5 bg-slate-900 border border-slate-850 rounded-lg font-mono text-[10px] text-blue-300 leading-relaxed overflow-x-auto">
+              <div className="p-2.5 bg-surface-container border border-outline-variant/60 rounded-m3-md font-mono text-[10px] text-blue-300 leading-relaxed overflow-x-auto">
                 curl -X POST "{getProxyBaseUrl(selectedProviderForGuide.id)}/chat/completions" \<br />
                 &nbsp;&nbsp;-H "Authorization: Bearer sk-YOUR-KEY" \<br />
                 &nbsp;&nbsp;-H "Content-Type: application/json" \<br />
@@ -1284,7 +1284,7 @@ export function ProvidersPage() {
             <button
               type="button"
               onClick={() => setShowAddDrawer(false)}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition"
+              className="px-3.5 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs rounded-m3-md border border-outline-variant/50 transition"
             >
               Cancel
             </button>
@@ -1292,7 +1292,7 @@ export function ProvidersPage() {
               type="button"
               onClick={handleAddProvider}
               disabled={!newId.trim() || !newName.trim() || !newBaseUrl.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-m3-md transition disabled:opacity-50 shadow-lg shadow-blue-600/20"
             >
               Register Provider
             </button>
@@ -1301,54 +1301,54 @@ export function ProvidersPage() {
       >
         <form onSubmit={handleAddProvider} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Provider Unique ID <span className="text-slate-500 font-mono">(Used in URL path)</span>
+            <label className="block text-xs font-semibold text-on-surface mb-1">
+              Provider Unique ID <span className="text-on-surface-variant/80 font-mono">(Used in URL path)</span>
             </label>
             <input
               type="text"
               placeholder="e.g. 9router, deepseek, groq"
               value={newId}
               onChange={(e) => setNewId(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-blue-300 font-mono focus:outline-none focus:border-blue-500"
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-blue-300 font-mono focus:outline-none focus:border-blue-500"
               required
             />
-            <p className="text-[10px] text-slate-500 mt-1 font-mono">
+            <p className="text-[10px] text-on-surface-variant/80 mt-1 font-mono">
               Direct URL will be: {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/p/{newId || ':id'}/v1
             </p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Display Name</label>
+            <label className="block text-xs font-semibold text-on-surface mb-1">Display Name</label>
             <input
               type="text"
               placeholder="e.g. 9router Unified Gateway"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Target Upstream Base URL</label>
+            <label className="block text-xs font-semibold text-on-surface mb-1">Target Upstream Base URL</label>
             <input
               type="url"
               placeholder="e.g. http://9router.mfahrurozi.my.id/api/v1"
               value={newBaseUrl}
               onChange={(e) => setNewBaseUrl(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface font-mono focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Description (Optional)</label>
+            <label className="block text-xs font-semibold text-on-surface mb-1">Description (Optional)</label>
             <input
               type="text"
               placeholder="e.g. Self-hosted 9router AI endpoint"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-m3-lg px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-blue-500"
             />
           </div>
         </form>

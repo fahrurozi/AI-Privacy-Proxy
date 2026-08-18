@@ -51,7 +51,7 @@ const PROVIDERS_FILE = path.join(DATA_DIR, 'providers.json');
 
 class UpstreamStore {
   private providers: Map<string, UpstreamProvider> = new Map();
-  private defaultProviderId = 'default';
+  private defaultProviderId = 'openai';
   private privacyMode: PrivacyMode = config.PRIVACY_MODE;
   private vaultTtlSeconds: number = config.VAULT_TTL_SECONDS;
 
@@ -61,21 +61,11 @@ class UpstreamStore {
   }
 
   private initDefaultProviders() {
-    const envBaseUrl = config.UPSTREAM_BASE_URL || 'https://api.openai.com';
-
-    this.providers.set('default', {
-      id: 'default',
-      name: 'Primary Upstream (Configured)',
-      baseUrl: envBaseUrl,
-      isDefault: true,
-      description: 'Default target from initial environment configuration',
-    });
-
     this.providers.set('openai', {
       id: 'openai',
       name: 'OpenAI Direct',
       baseUrl: 'https://api.openai.com',
-      isDefault: false,
+      isDefault: true,
       description: 'Official OpenAI API (v1/chat/completions)',
     });
 

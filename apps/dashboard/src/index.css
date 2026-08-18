@@ -2,32 +2,145 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Material 3 Color Tokens: Light Scheme ──────────────────────────── */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+
+  /* Primary (Deep Tech Indigo) */
+  --md-sys-color-primary: 26 92 255;            /* #1a5cff */
+  --md-sys-color-on-primary: 255 255 255;
+  --md-sys-color-primary-container: 224 235 255; /* #e0ebff */
+  --md-sys-color-on-primary-container: 0 45 156;
+
+  /* Secondary (Teal Privacy Accent) */
+  --md-sys-color-secondary: 0 137 123;          /* #00897b */
+  --md-sys-color-on-secondary: 255 255 255;
+  --md-sys-color-secondary-container: 204 242 236;
+  --md-sys-color-on-secondary-container: 0 59 52;
+
+  /* Tertiary (Purple Cryptography) */
+  --md-sys-color-tertiary: 124 58 237;          /* #7c3aed */
+  --md-sys-color-on-tertiary: 255 255 255;
+  --md-sys-color-tertiary-container: 243 232 255;
+  --md-sys-color-on-tertiary-container: 59 7 100;
+
+  /* Error */
+  --md-sys-color-error: 220 38 38;              /* #dc2626 */
+  --md-sys-color-on-error: 255 255 255;
+  --md-sys-color-error-container: 254 226 226;
+  --md-sys-color-on-error-container: 127 29 29;
+
+  /* Surface & Background (Light) */
+  --md-sys-color-background: 248 249 253;       /* #f8f9fd */
+  --md-sys-color-on-background: 25 28 32;       /* #191c20 */
+  --md-sys-color-surface: 255 255 255;          /* #ffffff */
+  --md-sys-color-surface-dim: 236 238 243;
+  --md-sys-color-surface-bright: 255 255 255;
+  --md-sys-color-surface-container: 241 243 249; /* #f1f3f9 */
+  --md-sys-color-surface-container-low: 247 248 253;
+  --md-sys-color-surface-container-high: 232 235 242;
+  --md-sys-color-surface-container-highest: 224 227 235;
+  --md-sys-color-surface-variant: 224 227 235;
+
+  /* Text & Outlines */
+  --md-sys-color-on-surface: 25 28 32;          /* #191c20 */
+  --md-sys-color-on-surface-variant: 83 91 100; /* #535b64 */
+  --md-sys-color-outline: 140 148 158;          /* #8c949e */
+  --md-sys-color-outline-variant: 216 222 230;  /* #d8dee6 */
 }
 
+/* ── Material 3 Color Tokens: Dark Scheme ───────────────────────────── */
+.dark {
+  color-scheme: dark;
+
+  /* Primary (Vibrant Blue/Indigo) */
+  --md-sys-color-primary: 91 143 255;           /* #5b8fff */
+  --md-sys-color-on-primary: 0 34 110;
+  --md-sys-color-primary-container: 0 68 180;
+  --md-sys-color-on-primary-container: 219 234 254;
+
+  /* Secondary (Teal) */
+  --md-sys-color-secondary: 45 212 191;         /* #2dd4bf */
+  --md-sys-color-on-secondary: 0 51 45;
+  --md-sys-color-secondary-container: 0 77 68;
+  --md-sys-color-on-secondary-container: 204 251 241;
+
+  /* Tertiary (Purple) */
+  --md-sys-color-tertiary: 192 132 252;         /* #c084fc */
+  --md-sys-color-on-tertiary: 60 7 105;
+  --md-sys-color-tertiary-container: 88 28 135;
+  --md-sys-color-on-tertiary-container: 243 232 255;
+
+  /* Error */
+  --md-sys-color-error: 248 113 113;            /* #f87171 */
+  --md-sys-color-on-error: 91 13 13;
+  --md-sys-color-error-container: 153 27 27;
+  --md-sys-color-on-error-container: 254 226 226;
+
+  /* Surface & Background (Dark) */
+  --md-sys-color-background: 13 17 26;          /* #0d111a */
+  --md-sys-color-on-background: 226 232 240;    /* #e2e8f0 */
+  --md-sys-color-surface: 16 21 34;             /* #101522 */
+  --md-sys-color-surface-dim: 11 15 23;
+  --md-sys-color-surface-bright: 30 38 58;
+  --md-sys-color-surface-container: 21 28 44;   /* #151c2c */
+  --md-sys-color-surface-container-low: 17 22 35;
+  --md-sys-color-surface-container-high: 27 36 56;
+  --md-sys-color-surface-container-highest: 36 47 72;
+  --md-sys-color-surface-variant: 30 40 62;
+
+  /* Text & Outlines */
+  --md-sys-color-on-surface: 241 245 249;       /* #f1f5f9 */
+  --md-sys-color-on-surface-variant: 148 163 184;/* #94a3b8 */
+  --md-sys-color-outline: 71 85 105;            /* #475569 */
+  --md-sys-color-outline-variant: 30 41 59;     /* #1e293b */
+}
+
+/* Base resets & typography */
 body {
   margin: 0;
-  background-color: #090d16;
-  color: #f1f5f9;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: rgb(var(--md-sys-color-background));
+  color: rgb(var(--md-sys-color-on-surface));
+  font-family: 'Plus Jakarta Sans', 'Roboto Flex', -apple-system, BlinkMacSystemFont, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Custom scrollbar */
+/* Material 3 State Layer Utilities */
+.m3-state-layer {
+  position: relative;
+  overflow: hidden;
+}
+.m3-state-layer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+.m3-state-layer:hover::after {
+  opacity: 0.08;
+}
+.m3-state-layer:active::after {
+  opacity: 0.12;
+}
+.m3-state-layer:focus-visible::after {
+  opacity: 0.12;
+}
+
+/* Custom Material scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #0c1220;
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
+  background: rgb(var(--md-sys-color-outline-variant));
+  border-radius: 9999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: rgb(var(--md-sys-color-outline));
 }
