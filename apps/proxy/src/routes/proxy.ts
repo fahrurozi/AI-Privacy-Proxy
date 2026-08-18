@@ -81,6 +81,9 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
 
     // Always expose session ID so clients can fetch token legend
     reply.header('x-privacy-session-id', processed.sessionId);
+    reply.header('x-privacy-presidio-ms', String(processed.presidioLatencyMs));
+    reply.header('x-privacy-llm-ms', String(llmLatencyMs));
+    reply.header('x-privacy-proxy-overhead-ms', String(Math.max(0, preProcessMs)));
 
     if (req.headers['x-privacy-debug'] === 'true') {
       reply.header('x-privacy-sanitized-body', Buffer.from(processed.sanitizedBody || '').toString('base64'));

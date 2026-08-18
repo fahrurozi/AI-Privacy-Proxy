@@ -1309,96 +1309,147 @@ export function ProvidersPage() {
                   </div>
                 </div>
 
-                {/* Process Time Breakdown */}
-                {(playgroundResponse.llmMs! > 0 || playgroundResponse.presidioMs! > 0) && (
-                  <div className="bg-surface-container border border-outline-variant/60 rounded-m3-lg p-3 space-y-2.5">
+                {/* Process Time Breakdown & 3-Step Lifecycle Cards */}
+                <div className="bg-surface-container border border-outline-variant/60 rounded-m3-lg p-3 space-y-3">
+                  <div className="flex items-center justify-between">
                     <div className="text-[10px] uppercase tracking-wider text-on-surface-variant font-semibold flex items-center gap-1.5">
                       <Activity className="w-3 h-3 text-blue-400" />
-                      <span>Process Time Breakdown</span>
+                      <span>Step-by-Step Processing Duration</span>
                     </div>
-                    <div className="space-y-2">
-                      {/* LLM bar */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-amber-400 font-semibold w-24 shrink-0">LLM Latency</span>
-                        <div className="flex-1 h-2.5 bg-surface-container-high rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, ((playgroundResponse.llmMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-amber-400 font-mono w-14 text-right shrink-0">
-                          {playgroundResponse.llmMs ?? 0}ms
+                    <span className="text-[10px] font-mono text-on-surface-variant">
+                      Total Latency: <strong className="text-on-surface">{playgroundResponse.latencyMs}ms</strong>
+                    </span>
+                  </div>
+
+                  {/* 3-Step Timing Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {/* Step 1 Duration */}
+                    <div className="p-2.5 bg-blue-950/20 border border-blue-900/40 rounded-m3-md flex flex-col justify-between space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-blue-300 font-semibold flex items-center gap-1">
+                          <Lock className="w-3 h-3 text-blue-400" /> 1. Ingress Sanitization
                         </span>
-                      </div>
-                      {/* Presidio bar */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-blue-400 font-semibold w-24 shrink-0">PII Analysis</span>
-                        <div className="flex-1 h-2.5 bg-surface-container-high rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, ((playgroundResponse.presidioMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-blue-400 font-mono w-14 text-right shrink-0">
+                        <span className="text-xs font-mono font-bold text-blue-400 bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-800/40">
                           {playgroundResponse.presidioMs ?? 0}ms
                         </span>
                       </div>
-                      {/* Proxy overhead bar */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-emerald-400 font-semibold w-24 shrink-0">Proxy Overhead</span>
-                        <div className="flex-1 h-2.5 bg-surface-container-high rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-emerald-600 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, ((playgroundResponse.proxyOverheadMs || 0) / playgroundResponse.latencyMs) * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-emerald-400 font-mono w-14 text-right shrink-0">
-                          {playgroundResponse.proxyOverheadMs ?? 0}ms
+                      <p className="text-[10px] text-on-surface-variant leading-tight">
+                        Presidio NLP entity recognition & local Redis token vault mapping
+                      </p>
+                    </div>
+
+                    {/* Step 2 Duration */}
+                    <div className="p-2.5 bg-amber-950/20 border border-amber-900/40 rounded-m3-md flex flex-col justify-between space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-amber-300 font-semibold flex items-center gap-1">
+                          <Cpu className="w-3 h-3 text-amber-400" /> 2. Cloud AI Inference
+                        </span>
+                        <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/40">
+                          {playgroundResponse.llmMs ?? playgroundResponse.latencyMs}ms
                         </span>
                       </div>
+                      <p className="text-[10px] text-on-surface-variant leading-tight">
+                        Upstream network round-trip & cloud LLM generation
+                      </p>
+                    </div>
+
+                    {/* Step 3 Duration */}
+                    <div className="p-2.5 bg-emerald-950/20 border border-emerald-900/40 rounded-m3-md flex flex-col justify-between space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-emerald-300 font-semibold flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-emerald-400" /> 3. Detokenization
+                        </span>
+                        <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">
+                          {playgroundResponse.proxyOverheadMs && playgroundResponse.proxyOverheadMs > 0 ? `${playgroundResponse.proxyOverheadMs}ms` : '< 1ms'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-on-surface-variant leading-tight">
+                        Real-time token replacement & plaintext delivery to client
+                      </p>
                     </div>
                   </div>
-                )}
 
-                {/* 3-View Tab Switcher */}
+                  {/* Relative Timeline Bar */}
+                  <div className="space-y-1 pt-1">
+                    <div className="flex h-2 bg-surface-container-high rounded-full overflow-hidden">
+                      <div
+                        className="bg-blue-500 transition-all duration-500"
+                        title={`PII Sanitization: ${playgroundResponse.presidioMs || 0}ms`}
+                        style={{ width: `${Math.max(3, Math.min(100, ((playgroundResponse.presidioMs || 0) / (playgroundResponse.latencyMs || 1)) * 100))}%` }}
+                      />
+                      <div
+                        className="bg-amber-500 transition-all duration-500"
+                        title={`Cloud AI: ${playgroundResponse.llmMs || playgroundResponse.latencyMs}ms`}
+                        style={{ width: `${Math.max(5, Math.min(100, (((playgroundResponse.llmMs || playgroundResponse.latencyMs) || 0) / (playgroundResponse.latencyMs || 1)) * 100))}%` }}
+                      />
+                      <div
+                        className="bg-emerald-500 transition-all duration-500"
+                        title={`Detokenizer: ${playgroundResponse.proxyOverheadMs || 1}ms`}
+                        style={{ width: `${Math.max(3, Math.min(100, ((playgroundResponse.proxyOverheadMs || 1) / (playgroundResponse.latencyMs || 1)) * 100))}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] text-on-surface-variant font-mono">
+                      <span className="text-blue-400">● 1. Ingress ({playgroundResponse.presidioMs ?? 0}ms)</span>
+                      <span className="text-amber-400">● 2. Cloud AI ({playgroundResponse.llmMs ?? playgroundResponse.latencyMs}ms)</span>
+                      <span className="text-emerald-400">● 3. Detokenizer ({playgroundResponse.proxyOverheadMs ? `${playgroundResponse.proxyOverheadMs}ms` : '<1ms'})</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3-View Tab Switcher with per-step timing badges */}
                 <div className="grid grid-cols-3 gap-1 p-1 bg-surface-container rounded-m3-lg border border-outline-variant/60 text-[11px] font-medium">
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('sent_external')}
-                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center cursor-pointer ${
+                    className={`py-2 px-1.5 rounded-m3-md flex flex-wrap items-center justify-center gap-1.5 transition text-center cursor-pointer ${
                       activePlaygroundTab === 'sent_external'
                         ? 'bg-blue-600 text-white shadow'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
-                    <Lock className="w-3 h-3 shrink-0" />
-                    <span>1. Sent to External</span>
+                    <div className="flex items-center gap-1">
+                      <Lock className="w-3 h-3 shrink-0" />
+                      <span>1. Sent to External</span>
+                    </div>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/20 border border-white/10 font-normal">
+                      {playgroundResponse.presidioMs ?? 0}ms
+                    </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('raw_external')}
-                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center cursor-pointer ${
+                    className={`py-2 px-1.5 rounded-m3-md flex flex-wrap items-center justify-center gap-1.5 transition text-center cursor-pointer ${
                       activePlaygroundTab === 'raw_external'
                         ? 'bg-amber-600 text-white shadow'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
-                    <Cpu className="w-3 h-3 shrink-0" />
-                    <span>2. Raw Upstream Response</span>
+                    <div className="flex items-center gap-1">
+                      <Cpu className="w-3 h-3 shrink-0" />
+                      <span>2. Upstream Raw</span>
+                    </div>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/20 border border-white/10 font-normal">
+                      {playgroundResponse.llmMs ?? playgroundResponse.latencyMs}ms
+                    </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setActivePlaygroundTab('client')}
-                    className={`py-2 px-2 rounded-m3-md flex items-center justify-center gap-1.5 transition text-center cursor-pointer ${
+                    className={`py-2 px-1.5 rounded-m3-md flex flex-wrap items-center justify-center gap-1.5 transition text-center cursor-pointer ${
                       activePlaygroundTab === 'client'
                         ? 'bg-emerald-600 text-white shadow'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
                     }`}
                   >
-                    <Sparkles className="w-3 h-3 shrink-0" />
-                    <span>3. Delivered to Client</span>
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 shrink-0" />
+                      <span>3. Client Delivery</span>
+                    </div>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/20 border border-white/10 font-normal">
+                      {playgroundResponse.latencyMs}ms total
+                    </span>
                   </button>
                 </div>
 
@@ -1410,14 +1461,14 @@ export function ProvidersPage() {
                         <Lock className="w-3.5 h-3.5 text-blue-400" /> Sanitized Prompt (Received by Cloud AI / Router)
                       </span>
                       <span className="text-[10px] text-blue-400 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-900/50 font-mono">
-                        Surrogate Tokens Only • Zero PII Leak
+                        Ingress Time: {playgroundResponse.presidioMs ?? 0}ms • Zero PII Leak
                       </span>
                     </div>
                     <div className="p-3.5 bg-blue-950/20 border border-blue-900/50 rounded-m3-lg font-mono text-xs text-blue-100 whitespace-pre-wrap leading-relaxed">
                       {playgroundResponse.sanitizedPrompt || playgroundPrompt}
                     </div>
                     <p className="text-[10px] text-on-surface-variant">
-                      All sensitive personal data (names, emails, crypto addresses) has been replaced with surrogate tokens before leaving your local server.
+                      All sensitive personal data (names, emails, crypto addresses) was replaced with surrogate tokens in {playgroundResponse.presidioMs ?? 0}ms before leaving your local server.
                     </p>
                   </div>
                 )}
@@ -1430,14 +1481,14 @@ export function ProvidersPage() {
                         <Cpu className="w-3.5 h-3.5 text-amber-400" /> Raw Response (Tokenized Response Sent by AI)
                       </span>
                       <span className="text-[10px] text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-900/50 font-mono">
-                        Tokenized AI Completion
+                        Cloud Generation Time: {playgroundResponse.llmMs ?? playgroundResponse.latencyMs}ms
                       </span>
                     </div>
                     <div className="p-3.5 bg-amber-950/20 border border-amber-900/50 rounded-m3-lg font-mono text-xs text-amber-100 whitespace-pre-wrap leading-relaxed">
                       <HighlightedTokenText text={playgroundResponse.rawUpstreamResponse || playgroundResponse.text} legend={tokenLegend} />
                     </div>
                     <p className="text-[10px] text-on-surface-variant">
-                      The cloud AI model processes and generates responses referencing surrogate tokens without ever knowing your actual sensitive data.
+                      The cloud AI model took {playgroundResponse.llmMs ?? playgroundResponse.latencyMs}ms to generate responses referencing surrogate tokens without ever seeing your actual sensitive data.
                     </p>
                   </div>
                 )}
@@ -1450,7 +1501,7 @@ export function ProvidersPage() {
                         <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Detokenized Result (Final Output Delivered to Client / IDE)
                       </span>
                       <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-900/50 font-mono">
-                        Plaintext Restored Transparently
+                        Detokenizer: {playgroundResponse.proxyOverheadMs ? `${playgroundResponse.proxyOverheadMs}ms` : '<1ms'} • Total: {playgroundResponse.latencyMs}ms
                       </span>
                     </div>
                     <div className="p-3.5 bg-surface-container border border-emerald-800/40 rounded-m3-lg font-mono text-xs text-on-surface whitespace-pre-wrap leading-relaxed min-h-[80px]">
