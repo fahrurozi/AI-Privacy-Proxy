@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { PrivacyMode, UpstreamSettings } from '@ai-privacy-proxy/shared';
 import { fetchApi } from '../lib/api.js';
 import {
   Settings,
   Check,
-  Save,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -15,6 +14,8 @@ import {
   ToggleLeft,
   ToggleRight,
   HelpCircle,
+  Loader2,
+  Zap,
 } from 'lucide-react';
 
 export function SettingsPage() {
@@ -23,8 +24,10 @@ export function SettingsPage() {
   const [injectHint, setInjectHint] = useState<boolean>(true);
   const [customHint, setCustomHint] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const debounceTimerRef = useRef<any>(null);
 
   const loadSettings = async () => {
     try {
@@ -45,31 +48,70 @@ export function SettingsPage() {
     loadSettings();
   }, []);
 
-  const handleSaveSystemSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveSettingsToServer = async (overrides: {
+    privacyMode?: PrivacyMode;
+    vaultTtlSeconds?: number;
+    injectPreservationHint?: boolean;
+    customPreservationHint?: string;
+  } = {}) => {
     try {
-      setSaving(true);
+      setIsSaving(true);
+      const payload = {
+        privacyMode: overrides.privacyMode ?? privacyMode,
+        vaultTtlSeconds: overrides.vaultTtlSeconds ?? vaultTtl,
+        injectPreservationHint: overrides.injectPreservationHint ?? injectHint,
+        customPreservationHint:
+          overrides.customPreservationHint !== undefined
+            ? overrides.customPreservationHint.trim() || undefined
+            : customHint.trim() || undefined,
+      };
+
       const res = await fetchApi<{ status: string; settings: UpstreamSettings }>('/admin/upstream', {
         method: 'PUT',
-        body: JSON.stringify({
-          privacyMode,
-          vaultTtlSeconds: vaultTtl,
-          injectPreservationHint: injectHint,
-          customPreservationHint: customHint.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      setPrivacyMode(res.settings.privacyMode);
-      setVaultTtl(res.settings.vaultTtlSeconds);
-      setInjectHint(res.settings.injectPreservationHint !== false);
-      setCustomHint(res.settings.customPreservationHint || '');
-      setStatusMessage({ text: 'System settings saved and applied dynamically in real-time!', type: 'success' });
-      setTimeout(() => setStatusMessage(null), 4000);
+      if (res.settings) {
+        setPrivacyMode(res.settings.privacyMode);
+        setVaultTtl(res.settings.vaultTtlSeconds);
+        setInjectHint(res.settings.injectPreservationHint !== false);
+        setCustomHint(res.settings.customPreservationHint || '');
+      }
+
+      setLastSavedTime(new Date().toLocaleTimeString());
+      setStatusMessage(null);
     } catch (err: any) {
-      setStatusMessage({ text: `Failed to update settings: ${err.message}`, type: 'error' });
+      setStatusMessage({ text: `Auto-save failed: ${err.message}`, type: 'error' });
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
+  };
+
+  const handlePrivacyModeChange = (mode: PrivacyMode) => {
+    setPrivacyMode(mode);
+    saveSettingsToServer({ privacyMode: mode });
+  };
+
+  const handleToggleHint = () => {
+    const nextVal = !injectHint;
+    setInjectHint(nextVal);
+    saveSettingsToServer({ injectPreservationHint: nextVal });
+  };
+
+  const handleTtlChange = (newTtl: number) => {
+    setVaultTtl(newTtl);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      saveSettingsToServer({ vaultTtlSeconds: newTtl });
+    }, 400);
+  };
+
+  const handleCustomHintChange = (text: string) => {
+    setCustomHint(text);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      saveSettingsToServer({ customPreservationHint: text });
+    }, 600);
   };
 
   const formatTtl = (seconds: number) => {
@@ -102,10 +144,27 @@ export function SettingsPage() {
       )}
 
       {/* System Settings Form: Material 3 Elevated Card */}
-      <form onSubmit={handleSaveSystemSettings} className="bg-surface-container-low border border-outline-variant/60 p-6 sm:p-8 rounded-m3-xl space-y-6 shadow-m3-1">
-        <h2 className="text-sm font-bold text-on-surface flex items-center gap-2">
-          <Settings className="w-4 h-4 text-primary" /> Real-time Privacy & Storage Controls
-        </h2>
+      <div className="bg-surface-container-low border border-outline-variant/60 p-6 sm:p-8 rounded-m3-xl space-y-6 shadow-m3-1">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-bold text-on-surface flex items-center gap-2">
+            <Settings className="w-4 h-4 text-primary" /> Real-time Privacy & Storage Controls
+          </h2>
+          <div className="flex items-center gap-2">
+            {isSaving ? (
+              <span className="flex items-center gap-1.5 text-xs text-primary font-medium bg-primary-container/60 px-3 py-1 rounded-m3-full animate-pulse border border-primary/30">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving changes...
+              </span>
+            ) : lastSavedTime ? (
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium bg-emerald-950/60 border border-emerald-800/40 px-3 py-1 rounded-m3-full">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Auto-saved dynamically ({lastSavedTime})
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-xs text-on-surface-variant bg-surface-container px-3 py-1 rounded-m3-full border border-outline-variant/40">
+                <Zap className="w-3.5 h-3.5 text-secondary" /> Instant Auto-Save Active
+              </span>
+            )}
+          </div>
+        </div>
 
         {/* 3-Way Privacy Mode Cards */}
         <div className="space-y-3 p-5 sm:p-6 bg-surface-container rounded-m3-lg border border-outline-variant/40">
@@ -125,8 +184,8 @@ export function SettingsPage() {
             {/* STRICT */}
             <button
               type="button"
-              onClick={() => setPrivacyMode('strict')}
-              className={`p-5 rounded-m3-lg border text-left flex flex-col justify-between transition-all m3-state-layer ${
+              onClick={() => handlePrivacyModeChange('strict')}
+              className={`p-5 rounded-m3-lg border text-left flex flex-col justify-between transition-all m3-state-layer cursor-pointer ${
                 privacyMode === 'strict'
                   ? 'bg-primary-container/40 border-primary text-on-surface shadow-m3-1 ring-1 ring-primary/40'
                   : 'bg-surface-container-low border-outline-variant/60 text-on-surface-variant hover:bg-surface-container-high'
@@ -146,8 +205,8 @@ export function SettingsPage() {
             {/* BALANCED */}
             <button
               type="button"
-              onClick={() => setPrivacyMode('balanced')}
-              className={`p-5 rounded-m3-lg border text-left flex flex-col justify-between transition-all m3-state-layer ${
+              onClick={() => handlePrivacyModeChange('balanced')}
+              className={`p-5 rounded-m3-lg border text-left flex flex-col justify-between transition-all m3-state-layer cursor-pointer ${
                 privacyMode === 'balanced'
                   ? 'bg-secondary-container/40 border-secondary text-on-surface shadow-m3-1 ring-1 ring-secondary/40'
                   : 'bg-surface-container-low border-outline-variant/60 text-on-surface-variant hover:bg-surface-container-high'
@@ -167,8 +226,8 @@ export function SettingsPage() {
             {/* BYPASS */}
             <button
               type="button"
-              onClick={() => setPrivacyMode('bypass')}
-              className={`p-5 rounded-m3-lg border text-left flex flex-col justify-between transition-all m3-state-layer ${
+              onClick={() => handlePrivacyModeChange('bypass')}
+              className={`p-5 rounded-m3-lg border text-left flex flex-col justify-between transition-all m3-state-layer cursor-pointer ${
                 privacyMode === 'bypass'
                   ? 'bg-tertiary-container/40 border-tertiary text-on-surface shadow-m3-1 ring-1 ring-tertiary/40'
                   : 'bg-surface-container-low border-outline-variant/60 text-on-surface-variant hover:bg-surface-container-high'
@@ -217,8 +276,8 @@ export function SettingsPage() {
 
             <button
               type="button"
-              onClick={() => setInjectHint(!injectHint)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-m3-full text-xs font-semibold border transition ${
+              onClick={handleToggleHint}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-m3-full text-xs font-semibold border transition cursor-pointer ${
                 injectHint
                   ? 'bg-secondary-container text-secondary-on-container border-secondary/30'
                   : 'bg-surface-container-high text-on-surface-variant border-outline-variant/60'
@@ -248,7 +307,7 @@ export function SettingsPage() {
                   rows={2}
                   placeholder="Enter custom prompt directive to override the default above..."
                   value={customHint}
-                  onChange={(e) => setCustomHint(e.target.value)}
+                  onChange={(e) => handleCustomHintChange(e.target.value)}
                   className="w-full bg-surface-container border border-outline-variant/60 rounded-m3-md px-3.5 py-2 text-xs text-on-surface focus:outline-none focus:border-primary font-mono resize-none"
                 />
                 <p className="text-[11px] text-on-surface-variant/80">
@@ -281,7 +340,7 @@ export function SettingsPage() {
             max="86400"
             step="60"
             value={vaultTtl}
-            onChange={(e) => setVaultTtl(parseInt(e.target.value, 10))}
+            onChange={(e) => handleTtlChange(parseInt(e.target.value, 10))}
             className="w-full h-2 bg-surface-container-highest rounded-m3-full appearance-none cursor-pointer accent-primary"
           />
 
@@ -292,16 +351,19 @@ export function SettingsPage() {
           </div>
         </div>
 
-        <div className="flex justify-end pt-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-on text-xs font-semibold rounded-m3-full shadow-m3-1 hover:shadow-m3-2 transition-all disabled:opacity-50 m3-state-layer"
-          >
-            <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Settings'}
-          </button>
+        {/* Auto-Save Status Footer Banner */}
+        <div className="flex items-center justify-between p-3.5 bg-surface-container rounded-m3-lg border border-outline-variant/30 text-xs text-on-surface-variant">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary" />
+            <span>All system changes are applied dynamically in real-time without restarting proxy services.</span>
+          </div>
+          {lastSavedTime && (
+            <span className="font-mono text-[11px] text-emerald-400">
+              Synced: {lastSavedTime}
+            </span>
+          )}
         </div>
-      </form>
+      </div>
     </div>
   );
 }
