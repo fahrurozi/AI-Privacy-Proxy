@@ -79,6 +79,15 @@ export async function handleProxyRequest(req: FastifyRequest, reply: FastifyRepl
 
     const adapter = detectProtocol(path, req.headers, null);
 
+    // Always expose session ID so clients can fetch token legend
+    reply.header('x-privacy-session-id', processed.sessionId);
+
+    if (req.headers['x-privacy-debug'] === 'true') {
+      reply.header('x-privacy-sanitized-body', Buffer.from(processed.sanitizedBody || '').toString('base64'));
+      reply.header('x-privacy-tokens-count', String(processed.tokensCreated.length));
+      reply.header('x-privacy-entities', JSON.stringify(processed.entitiesDetected));
+    }
+
     if (isEventStream) {
       reply.status(upstreamStatus);
       reply.header('Content-Type', 'text/event-stream');
