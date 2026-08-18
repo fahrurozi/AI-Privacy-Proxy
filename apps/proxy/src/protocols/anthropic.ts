@@ -4,10 +4,12 @@ export class AnthropicAdapter implements ProtocolAdapter {
   type = 'anthropic' as const;
 
   matches(url: string, headers: Record<string, string | string[] | undefined>, _body: any): boolean {
+    if (url.includes('/chat/completions') || url.includes('/completions') || url.includes('/models')) {
+      return false;
+    }
     const isAnthropicUrl = url.includes('/v1/messages') || url.includes('/v1/complete');
     const hasAnthropicHeader =
       Boolean(headers['anthropic-version']) ||
-      Boolean(headers['x-api-key']) ||
       Boolean(headers['anthropic-beta']);
     return isAnthropicUrl || hasAnthropicHeader;
   }

@@ -46,13 +46,16 @@ export function detectProtocol(
   headers: Record<string, string | string[] | undefined>,
   body: any,
 ): ProtocolAdapter | null {
+  if (url.includes('/chat/completions') || url.includes('/completions')) {
+    return openAIAdapter;
+  }
   if (anthropicAdapter.matches(url, headers, body)) {
     return anthropicAdapter;
   }
   if (openAIAdapter.matches(url, headers, body)) {
     return openAIAdapter;
   }
-  return null;
+  return openAIAdapter;
 }
 
 export async function processIncomingRequest(

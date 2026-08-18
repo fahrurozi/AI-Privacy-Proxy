@@ -387,16 +387,25 @@ export function ProvidersPage() {
       setPlaygroundResponse(null);
 
       const startTime = Date.now();
-      const endpoint = `/p/${selectedProviderForPlayground.id}/v1/chat/completions`;
+      const isAnthropic = selectedProviderForPlayground.id === 'anthropic' || selectedProviderForPlayground.baseUrl.includes('anthropic.com');
+      const endpoint = isAnthropic
+        ? `/p/${selectedProviderForPlayground.id}/v1/messages`
+        : `/p/${selectedProviderForPlayground.id}/v1/chat/completions`;
 
-      const payload = {
-        model: modelToUse,
-        messages: [
-          { role: 'system', content: 'You are a helpful and accurate assistant.' },
-          { role: 'user', content: playgroundPrompt },
-        ],
-        stream: false,
-      };
+      const payload = isAnthropic
+        ? {
+            model: modelToUse,
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: playgroundPrompt }],
+          }
+        : {
+            model: modelToUse,
+            messages: [
+              { role: 'system', content: 'You are a helpful and accurate assistant.' },
+              { role: 'user', content: playgroundPrompt },
+            ],
+            stream: false,
+          };
 
       let simSanitizedText = '';
       try {
@@ -407,14 +416,25 @@ export function ProvidersPage() {
         simSanitizedText = simRes.transformedText;
       } catch {}
 
+      const reqHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-privacy-debug': 'true',
+      };
+
+      if (isAnthropic) {
+        reqHeaders['x-api-key'] = ephemeralKey.trim();
+        reqHeaders['anthropic-version'] = '2023-06-01';
+      } else {
+        reqHeaders['Authorization'] = `Bearer ${ephemeralKey.trim()}`;
+        if (selectedProviderForPlayground.baseUrl.includes('openrouter.ai')) {
+          reqHeaders['HTTP-Referer'] = 'http://localhost:3000';
+          reqHeaders['X-Title'] = 'AI Privacy Proxy';
+        }
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${ephemeralKey.trim()}`,
-          'x-api-key': ephemeralKey.trim(),
-          'x-privacy-debug': 'true',
-        },
+        headers: reqHeaders,
         body: JSON.stringify(payload),
       });
 
@@ -425,7 +445,7 @@ export function ProvidersPage() {
         let errMsg = `Upstream error HTTP ${response.status}`;
         try {
           const parsed = JSON.parse(errorText);
-          errMsg = parsed.error?.message || parsed.message || errorText;
+          errMsg = parsed.error?.message || (typeof parsed.error === 'string' ? parsed.error : null) || parsed.message || errorText;
         } catch {}
         throw new Error(errMsg);
       }
