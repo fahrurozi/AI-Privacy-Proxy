@@ -44,6 +44,10 @@ const ConfigSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   ADMIN_API_KEY: z.string().default('admin-secret-key-change-me'),
   ALLOWED_ORIGINS: z.string().default(''),
+  INJECT_PRESERVATION_HINT: z.preprocess(
+    (val) => (val === undefined ? true : val === 'true' || val === true || val === '1'),
+    z.boolean()
+  ).default(true),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

@@ -54,7 +54,7 @@ class UpstreamStore {
   private defaultProviderId = 'openai';
   private privacyMode: PrivacyMode = config.PRIVACY_MODE;
   private vaultTtlSeconds: number = config.VAULT_TTL_SECONDS;
-  private injectPreservationHint: boolean = true;
+  private injectPreservationHint: boolean = config.INJECT_PRESERVATION_HINT !== false;
   private customPreservationHint?: string;
 
   constructor() {
@@ -132,12 +132,17 @@ class UpstreamStore {
         const data = await vaultInstance.loadConfig('privacy:v1:system:providers');
         if (data) {
           this.applySavedData(data);
-          this.saveToDisk();
+          await this.persist(vaultInstance);
           return;
         }
       } catch {}
     }
     this.loadFromDisk();
+    if (vaultInstance) {
+      try {
+        await this.persist(vaultInstance);
+      } catch {}
+    }
   }
 
   private saveToDisk() {
