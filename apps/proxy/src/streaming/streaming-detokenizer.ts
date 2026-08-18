@@ -2,21 +2,47 @@ import { TokenVault } from '../vault/redis-vault.js';
 import { StreamStateManager } from './stream-state.js';
 import { TOKEN_PATTERN, detokenizeText } from '../privacy/detokenizer.js';
 
+const KNOWN_TOKEN_ENTITY_PREFIXES = [
+  'PERSON',
+  'EMAIL_ADDRESS',
+  'PHONE_NUMBER',
+  'BANK_ACCOUNT',
+  'INDONESIAN_KTP',
+  'PASSPORT_NUMBER',
+  'DRIVER_LICENSE',
+  'CUSTOMER_ID',
+  'LOCATION',
+  'CREDIT_CARD',
+  'ETHEREUM_ADDRESS',
+  'SOLANA_ADDRESS',
+  'IP_ADDRESS',
+  'API_KEY',
+  'PASSWORD',
+  'PRIVATE_KEY',
+  'US_SSN',
+  'US_PASSPORT',
+  'SEED_PHRASE',
+];
+
+const BARE_TOKEN_PREFIX_REGEX = new RegExp(
+  `\\b(${KNOWN_TOKEN_ENTITY_PREFIXES.join('|')})(?:_\\d{0,3})?$`,
+  'i'
+);
+
 export function findSafeFlushBoundary(text: string): number {
   const lastBracket = text.lastIndexOf('[');
   if (lastBracket !== -1) {
     // Check if there is a closing bracket after this opening bracket
     const closingBracket = text.indexOf(']', lastBracket);
-    if (closingBracket === -1 && text.length - lastBracket <= 50) {
+    if (closingBracket === -1 && text.length - lastBracket <= 60) {
       return lastBracket; // Incomplete bracket token, retain from lastBracket
     }
   }
 
-  // Check for bare token candidate at the end of text (e.g. PERSON, PERSON_, EMAIL_ADDRESS_0)
-  // that might be split across incoming stream chunks
-  const bareMatch = text.match(/([A-Z][A-Z_]{2,}_?\d{0,3})$/);
-  if (bareMatch && bareMatch[1] && bareMatch[1].length <= 40) {
-    return text.length - bareMatch[1].length;
+  // Check for specific bare token candidate at the end of text (e.g. PERSON, PERSON_, EMAIL_ADDRESS_0)
+  const bareMatch = text.match(BARE_TOKEN_PREFIX_REGEX);
+  if (bareMatch && bareMatch[0] && bareMatch[0].length <= 50) {
+    return text.length - bareMatch[0].length;
   }
 
   return text.length;
