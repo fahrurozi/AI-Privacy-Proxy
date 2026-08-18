@@ -30,6 +30,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Zap,
 } from 'lucide-react';
 
 // ── Color-coded entity type badge ────────────────────────────────────────────
@@ -169,6 +170,7 @@ export function ProvidersPage() {
   );
   const [isSendingRequest, setIsSendingRequest] = useState(false);
   const [requestElapsedSeconds, setRequestElapsedSeconds] = useState(0);
+  const [streamMode, setStreamMode] = useState(true);
 
   useEffect(() => {
     let interval: any;
@@ -411,6 +413,7 @@ export function ProvidersPage() {
             model: modelToUse,
             max_tokens: 4096,
             messages: [{ role: 'user', content: playgroundPrompt }],
+            stream: streamMode,
           }
         : {
             model: modelToUse,
@@ -418,7 +421,7 @@ export function ProvidersPage() {
               { role: 'system', content: 'You are a helpful and accurate assistant.' },
               { role: 'user', content: playgroundPrompt },
             ],
-            stream: false,
+            stream: streamMode,
           };
 
       let simSanitizedText = '';
@@ -452,8 +455,6 @@ export function ProvidersPage() {
         body: JSON.stringify(payload),
       });
 
-      const latencyMs = Date.now() - startTime;
-
       if (!response.ok) {
         const errorText = await response.text();
         let errMsg = `Upstream error HTTP ${response.status}`;
@@ -485,32 +486,91 @@ export function ProvidersPage() {
         } catch {}
       }
 
+      const sessionId = response.headers.get('x-privacy-session-id') || '';
       const contentType = response.headers.get('content-type') || '';
       let assistantText = '';
       let tokensUsed: number | undefined;
 
-      if (contentType.includes('text/event-stream')) {
-        const text = await response.text();
-        const lines = text.split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+      const isEventStream = contentType.includes('text/event-stream') || streamMode;
+
+      if (isEventStream && response.body) {
+        // Open the inspector panel immediately so user sees incremental text stream
+        setPlaygroundResponse({
+          text: '',
+          sanitizedPrompt: sanitizedPrompt || playgroundPrompt,
+          rawUpstreamResponse: '',
+          latencyMs: 0,
+          status: response.status,
+          sessionId,
+        });
+        setActivePlaygroundTab('client');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const textChunk = decoder.decode(value, { stream: true });
+          buffer += textChunk;
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith(':')) continue;
+
+            if (trimmed.startsWith('data: ')) {
+              const dataStr = trimmed.slice(6).trim();
+              if (dataStr === '[DONE]') continue;
+
+              try {
+                const chunk = JSON.parse(dataStr);
+                const delta =
+                  chunk.choices?.[0]?.delta?.content ||
+                  chunk.choices?.[0]?.text ||
+                  chunk.delta?.text ||
+                  chunk.content_block?.text ||
+                  '';
+                if (delta) {
+                  assistantText += delta;
+                  setPlaygroundResponse((prev) =>
+                    prev ? { ...prev, text: assistantText } : null
+                  );
+                }
+                if (chunk.usage?.total_tokens) {
+                  tokensUsed = chunk.usage.total_tokens;
+                }
+              } catch {
+                if (dataStr && dataStr !== '[DONE]') {
+                  assistantText += dataStr;
+                  setPlaygroundResponse((prev) =>
+                    prev ? { ...prev, text: assistantText } : null
+                  );
+                }
+              }
+            }
+          }
+        }
+
+        if (buffer.trim().startsWith('data: ')) {
+          const dataStr = buffer.trim().slice(6).trim();
+          if (dataStr && dataStr !== '[DONE]') {
             try {
-              const chunk = JSON.parse(trimmed.slice(6));
+              const chunk = JSON.parse(dataStr);
               const delta =
                 chunk.choices?.[0]?.delta?.content ||
                 chunk.choices?.[0]?.text ||
                 chunk.delta?.text ||
                 '';
-              assistantText += delta;
-              if (chunk.usage?.total_tokens) {
-                tokensUsed = chunk.usage.total_tokens;
+              if (delta) {
+                assistantText += delta;
               }
             } catch {}
           }
-        }
-        if (!assistantText.trim()) {
-          assistantText = text;
         }
       } else {
         const rawText = await response.text();
@@ -530,10 +590,9 @@ export function ProvidersPage() {
         rawUpstreamResponse = assistantText;
       }
 
-      const sessionId = response.headers.get('x-privacy-session-id') || '';
-      const totalMs = parseInt(response.headers.get('x-privacy-total-ms') || '0') || latencyMs;
+      const totalMs = Date.now() - startTime;
       const presidioMs = parseInt(response.headers.get('x-privacy-presidio-ms') || '0');
-      const llmMs = parseInt(response.headers.get('x-privacy-llm-ms') || '0');
+      const llmMs = parseInt(response.headers.get('x-privacy-llm-ms') || '0') || totalMs;
       const proxyOverheadMs = parseInt(response.headers.get('x-privacy-proxy-overhead-ms') || '0');
 
       setPlaygroundResponse({
@@ -548,7 +607,6 @@ export function ProvidersPage() {
         llmMs,
         proxyOverheadMs,
       });
-      setActivePlaygroundTab('client');
 
       // Fetch token mapping legend if we have a session ID
       if (sessionId) {
@@ -1177,7 +1235,21 @@ export function ProvidersPage() {
                 placeholder="Enter prompt containing sensitive data..."
               />
 
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setStreamMode(!streamMode)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-m3-md text-xs font-mono transition-colors cursor-pointer border ${
+                    streamMode
+                      ? 'bg-emerald-950/40 border-emerald-700/60 text-emerald-300'
+                      : 'bg-surface-container border-outline-variant/60 text-on-surface-variant hover:text-on-surface'
+                  }`}
+                  title="Stream responses in real-time token-by-token using SSE"
+                >
+                  <Zap className={`w-3.5 h-3.5 ${streamMode ? 'text-emerald-400 fill-emerald-400' : 'text-on-surface-variant'}`} />
+                  <span>Streaming (SSE): {streamMode ? 'ON' : 'OFF'}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleSendPlaygroundRequest}
@@ -1187,7 +1259,7 @@ export function ProvidersPage() {
                   {isSendingRequest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   <span>
                     {isSendingRequest
-                      ? `Waiting for Upstream AI (${requestElapsedSeconds}s)...`
+                      ? `Streaming from AI (${requestElapsedSeconds}s)...`
                       : 'Send Request via Privacy Proxy'}
                   </span>
                 </button>
@@ -1365,8 +1437,22 @@ export function ProvidersPage() {
                         Plaintext Restored Transparently
                       </span>
                     </div>
-                    <div className="p-3.5 bg-surface-container border border-emerald-800/40 rounded-m3-lg font-mono text-xs text-on-surface whitespace-pre-wrap leading-relaxed">
-                      {playgroundResponse.text}
+                    <div className="p-3.5 bg-surface-container border border-emerald-800/40 rounded-m3-lg font-mono text-xs text-on-surface whitespace-pre-wrap leading-relaxed min-h-[80px]">
+                      {playgroundResponse.text ? (
+                        <>
+                          {playgroundResponse.text}
+                          {isSendingRequest && (
+                            <span className="inline-block w-2 h-3.5 bg-emerald-400 animate-pulse ml-0.5 align-middle" />
+                          )}
+                        </>
+                      ) : isSendingRequest ? (
+                        <div className="flex items-center gap-2 text-on-surface-variant italic">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                          <span>Connecting to upstream stream & waiting for first token...</span>
+                        </div>
+                      ) : (
+                        <span className="text-on-surface-variant italic">Empty response</span>
+                      )}
                     </div>
                     <p className="text-[10px] text-on-surface-variant">
                       The Privacy Proxy transparently restores surrogate tokens back to their original values before delivering the response to your client application or IDE.
